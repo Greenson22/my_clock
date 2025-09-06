@@ -4,8 +4,9 @@ import 'dart:ui';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Menggunakan shared_preferences
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 
 // --- KONSTANTA & MODEL --- (Tidak ada perubahan)
 const String notificationChannelId = 'my_foreground_service';
@@ -142,7 +143,6 @@ void onStart(ServiceInstance service) async {
   List<CountdownTimer> activeTimers = [];
   Timer? globalTicker;
 
-  // --- FUNGSI TICKER & LAINNYA --- (Tidak ada perubahan)
   void onTick(Timer timer) async {
     bool stateChanged = false;
     String notificationBodySummary = "";
@@ -156,6 +156,9 @@ void onStart(ServiceInstance service) async {
           timer.remainingSeconds = 0;
           timer.isDone = true;
           timer.isPaused = true;
+
+          // [PERBAIKAN] Buat instance baru sebelum memanggil playAlarm
+          FlutterRingtonePlayer().playAlarm();
 
           flutterLocalNotificationsPlugin.show(
             timer.id.hashCode,
@@ -238,7 +241,7 @@ void onStart(ServiceInstance service) async {
     startGlobalTickerIfNeeded();
   }
 
-  // --- Event Listeners ---
+  // --- Event Listeners --- (Tidak ada perubahan)
   if (service is AndroidServiceInstance) {
     service
         .on('setAsForeground')
@@ -269,14 +272,11 @@ void onStart(ServiceInstance service) async {
     });
   });
 
-  // [PERBAIKAN DI SINI]
   service.on('removeTimer').listen((data) async {
     if (data == null) return;
     final String idToRemove = data['id'] as String;
     activeTimers.removeWhere((timer) => timer.id == idToRemove);
     await saveTimersToDisk(activeTimers);
-
-    // [TAMBAHKAN BARIS INI] Kirim update manual ke UI
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });

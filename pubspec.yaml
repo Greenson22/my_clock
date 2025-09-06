@@ -47,6 +47,7 @@ dependencies:
 
   uuid: ^4.4.0
   shared_preferences: ^2.2.3
+  flutter_ringtone_player: ^4.0.0
 
 
 dev_dependencies:

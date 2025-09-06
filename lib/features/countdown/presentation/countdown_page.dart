@@ -1,9 +1,11 @@
+import 'dart:io'; // <-- IMPOR BARU
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:file_picker/file_picker.dart'; // <-- IMPOR BARU
 import '../service/countdown_service.dart';
 
-// (TimeInputFormatter class tetap sama, tidak ada perubahan)
+// ... (TimeInputFormatter class tetap sama) ...
 class TimeInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -44,6 +46,7 @@ class _CountdownPageState extends State<CountdownPage> {
 
   @override
   void initState() {
+    // ... (initState tetap sama) ...
     super.initState();
     _service.startService();
     _service.invoke('setAsForeground');
@@ -64,13 +67,19 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   // --- FUNGSI KONTROL UI ---
-  void _addTimer(String name, String timeString) {
+  // [PERUBAHAN] _addTimer sekarang menerima path alarm
+  void _addTimer(String name, String timeString, String? alarmSoundPath) {
     final int totalSeconds = parseDuration(timeString);
     if (totalSeconds > 0) {
-      _service.invoke('addTimer', {'duration': totalSeconds, 'name': name});
+      _service.invoke('addTimer', {
+        'duration': totalSeconds,
+        'name': name,
+        'alarmSound': alarmSoundPath, // <-- Kirim path ke service
+      });
     }
   }
 
+  // ... (Sisa fungsi kontrol UI tidak berubah) ...
   void _removeTimer(String id) => _service.invoke('removeTimer', {'id': id});
   void _clearAllTimers() => _service.invoke('clearAll');
   void _pauseTimer(String id) => _service.invoke('pauseTimer', {'id': id});
@@ -147,7 +156,6 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  // [BARU] Fungsi untuk menampilkan dialog konfirmasi hapus satu timer
   Future<void> _showDeleteConfirmationDialog(CountdownTimer timer) async {
     return showDialog<void>(
       context: context,
@@ -192,8 +200,13 @@ class _CountdownPageState extends State<CountdownPage> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: _AddTimerSheet(
-            onAddTimer: (name, timeString) {
-              _addTimer(name, timeString);
+            onAddTimer: (name, timeString, alarmSoundPath) {
+              // <-- Terima path alarm
+              _addTimer(
+                name,
+                timeString,
+                alarmSoundPath,
+              ); // <-- Kirim path alarm
               Navigator.pop(context);
             },
           ),
@@ -203,6 +216,7 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   // --- BUILD WIDGET UTAMA ---
+  // ... (Build method utama tidak berubah) ...
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -222,6 +236,7 @@ class _CountdownPageState extends State<CountdownPage> {
           ),
         ],
       ),
+      // [BARU] Tambahkan FloatingActionButton
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddTimerSheet,
         label: const Text('Timer Baru'),
@@ -246,7 +261,12 @@ class _CountdownPageState extends State<CountdownPage> {
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
+              padding: const EdgeInsets.fromLTRB(
+                8,
+                8,
+                8,
+                80,
+              ), // Padding bawah agar tidak tertutup FAB
               itemCount: _activeTimers.length,
               itemBuilder: (context, index) {
                 final timer = _activeTimers[index];
@@ -256,8 +276,8 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  // --- WIDGET HELPER ---
   Widget _buildModernTimerCard(CountdownTimer timer) {
+    // ... (Tidak ada perubahan di sini, kecuali mungkin menampilkan nama file alarm jika diinginkan) ...
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
 
@@ -278,6 +298,11 @@ class _CountdownPageState extends State<CountdownPage> {
     final double progress = timer.initialDurationSeconds > 0
         ? timer.remainingSeconds / timer.initialDurationSeconds
         : 0.0;
+
+    // Opsi: Tampilkan nama file jika ada suara kustom
+    final String alarmInfo = timer.alarmSound != null
+        ? 'Alarm: ${timer.alarmSound!.split('/').last}'
+        : 'Alarm: Default';
 
     return Card(
       elevation: isPaused ? 1.0 : 3.0,
@@ -330,15 +355,23 @@ class _CountdownPageState extends State<CountdownPage> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: stateColor.withOpacity(0.2),
-                  valueColor: AlwaysStoppedAnimation<Color>(stateColor),
-                  minHeight: 6,
-                  borderRadius: BorderRadius.circular(3),
-                ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: stateColor.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(stateColor),
+                    minHeight: 6,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    alarmInfo,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ), // Tampilkan info alarm
+                ],
               ),
             ),
             ButtonBar(
@@ -355,7 +388,6 @@ class _CountdownPageState extends State<CountdownPage> {
                   onPressed: () => _resetTimer(timer.id),
                   child: const Text("Reset"),
                 ),
-                // [PERUBAHAN] Panggil fungsi dialog konfirmasi
                 TextButton(
                   onPressed: () => _showDeleteConfirmationDialog(timer),
                   child: Text(
@@ -372,9 +404,11 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 }
 
-// (Widget _AddTimerSheet tetap sama, tidak ada perubahan)
+// [PERUBAHAN BESAR DI SINI] Widget terpisah untuk konten Bottom Sheet
 class _AddTimerSheet extends StatefulWidget {
-  final Function(String name, String timeString) onAddTimer;
+  // Callback sekarang mengirim path alarm juga
+  final Function(String name, String timeString, String? alarmSoundPath)
+  onAddTimer;
 
   const _AddTimerSheet({required this.onAddTimer});
 
@@ -385,6 +419,7 @@ class _AddTimerSheet extends StatefulWidget {
 class _AddTimerSheetState extends State<_AddTimerSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _timeController;
+  File? _selectedAlarmFile; // <-- State untuk menyimpan file yang dipilih
 
   @override
   void initState() {
@@ -400,15 +435,33 @@ class _AddTimerSheetState extends State<_AddTimerSheet> {
     super.dispose();
   }
 
+  // Fungsi untuk memilih file audio
+  Future<void> _pickAlarmSound() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.audio,
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedAlarmFile = File(result.files.single.path!);
+      });
+    }
+  }
+
   void _handleAddTimer() {
     final String name = _nameController.text.isNotEmpty
         ? _nameController.text
         : defaultTimerName;
-    widget.onAddTimer(name, _timeController.text);
+    widget.onAddTimer(name, _timeController.text, _selectedAlarmFile?.path);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Tampilkan nama file yang dipilih atau 'Default'
+    final String alarmSoundText = _selectedAlarmFile != null
+        ? _selectedAlarmFile!.path.split('/').last
+        : 'Default';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Column(
@@ -455,7 +508,23 @@ class _AddTimerSheetState extends State<_AddTimerSheet> {
               TimeInputFormatter(),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          // Tombol untuk memilih alarm
+          OutlinedButton.icon(
+            icon: const Icon(Icons.music_note_outlined),
+            label: Expanded(
+              child: Text(alarmSoundText, overflow: TextOverflow.ellipsis),
+            ),
+            onPressed: _pickAlarmSound,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.centerLeft,
+            ),
+          ),
+          const SizedBox(height: 16),
           FilledButton.icon(
             icon: const Icon(Icons.add_alarm),
             label: const Text("SIMPAN TIMER"),

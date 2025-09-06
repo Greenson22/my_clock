@@ -48,6 +48,8 @@ dependencies:
   uuid: ^4.4.0
   shared_preferences: ^2.2.3
   flutter_ringtone_player: ^4.0.0
+  file_picker: ^8.0.0+1 # Untuk memilih file
+  just_audio: ^0.9.36   # Untuk memainkan audio dari file
 
 
 dev_dependencies:

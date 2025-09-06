@@ -7,8 +7,10 @@ import 'package:flutter_background_service_android/flutter_background_service_an
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:just_audio/just_audio.dart'; // <-- IMPOR BARU
 
-// --- KONSTANTA & MODEL --- (Tidak ada perubahan)
+// --- KONSTANTA & MODEL ---
+// ... (Konstanta tidak berubah)
 const String notificationChannelId = 'my_foreground_service';
 const int persistentNotificationId = 888;
 const String defaultTimerName = "Timer Baru";
@@ -24,6 +26,7 @@ class CountdownTimer {
   int remainingSeconds;
   bool isPaused;
   bool isDone;
+  final String? alarmSound; // <-- [BARU] Path file audio, bisa null
 
   CountdownTimer({
     required this.id,
@@ -32,6 +35,7 @@ class CountdownTimer {
     required this.remainingSeconds,
     this.isPaused = false,
     this.isDone = false,
+    this.alarmSound, // <-- [BARU] Tambahkan di konstruktor
   });
 
   Map<String, dynamic> toJson() => {
@@ -41,6 +45,7 @@ class CountdownTimer {
     'remainingSeconds': remainingSeconds,
     'isPaused': isPaused,
     'isDone': isDone,
+    'alarmSound': alarmSound, // <-- [BARU] Simpan ke JSON
   };
 
   factory CountdownTimer.fromJson(Map<String, dynamic> json) => CountdownTimer(
@@ -50,10 +55,11 @@ class CountdownTimer {
     remainingSeconds: json['remainingSeconds'] as int,
     isPaused: json['isPaused'] as bool? ?? false,
     isDone: json['isDone'] as bool? ?? false,
+    alarmSound: json['alarmSound'] as String?, // <-- [BARU] Muat dari JSON
   );
 }
 
-// --- FUNGSI HELPER & INISIALISASI --- (Tidak ada perubahan)
+// ... (Fungsi helper parse/format, initializeService, save/load tetap sama) ...
 int parseDuration(String hms) {
   try {
     final parts = hms.split(':').map((e) => int.tryParse(e) ?? 0).toList();
@@ -140,6 +146,9 @@ Future<List<CountdownTimer>> loadTimersFromDisk() async {
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
 
+  // [BARU] Buat instance AudioPlayer untuk background
+  final audioPlayer = AudioPlayer();
+
   List<CountdownTimer> activeTimers = [];
   Timer? globalTicker;
 
@@ -157,8 +166,20 @@ void onStart(ServiceInstance service) async {
           timer.isDone = true;
           timer.isPaused = true;
 
-          // [PERBAIKAN] Buat instance baru sebelum memanggil playAlarm
-          FlutterRingtonePlayer().playAlarm();
+          // [PERUBAHAN] Logika memainkan alarm
+          if (timer.alarmSound != null && timer.alarmSound!.isNotEmpty) {
+            try {
+              // Mainkan suara kustom
+              await audioPlayer.setFilePath(timer.alarmSound!);
+              audioPlayer.play();
+            } catch (e) {
+              // Jika file kustom gagal, mainkan default
+              FlutterRingtonePlayer().playAlarm();
+            }
+          } else {
+            // Mainkan suara default
+            FlutterRingtonePlayer().playAlarm();
+          }
 
           flutterLocalNotificationsPlugin.show(
             timer.id.hashCode,
@@ -183,6 +204,7 @@ void onStart(ServiceInstance service) async {
           "${timer.name}: ${formatDuration(timer.remainingSeconds)} $status\n";
     }
 
+    // ... sisa fungsi onTick (tidak ada perubahan) ...
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
@@ -226,6 +248,7 @@ void onStart(ServiceInstance service) async {
     }
   }
 
+  // ... (startGlobalTickerIfNeeded, onStart startup logic tetap sama) ...
   void startGlobalTickerIfNeeded() {
     if (globalTicker == null || !globalTicker!.isActive) {
       globalTicker = Timer.periodic(const Duration(seconds: 1), onTick);
@@ -241,7 +264,7 @@ void onStart(ServiceInstance service) async {
     startGlobalTickerIfNeeded();
   }
 
-  // --- Event Listeners --- (Tidak ada perubahan)
+  // --- Event Listeners ---
   if (service is AndroidServiceInstance) {
     service
         .on('setAsForeground')
@@ -255,6 +278,8 @@ void onStart(ServiceInstance service) async {
   service.on('addTimer').listen((data) async {
     if (data == null) return;
     final int duration = data['duration'] as int? ?? defaultTotalSeconds;
+    // [BARU] Ambil path suara dari data
+    final String? alarmSound = data['alarmSound'] as String?;
 
     final newTimer = CountdownTimer(
       id: uuid.v4(),
@@ -263,6 +288,7 @@ void onStart(ServiceInstance service) async {
       remainingSeconds: duration,
       isPaused: true,
       isDone: false,
+      alarmSound: alarmSound, // <-- [BARU] Simpan path suara
     );
 
     activeTimers.add(newTimer);
@@ -272,6 +298,7 @@ void onStart(ServiceInstance service) async {
     });
   });
 
+  // ... (Sisa listener: remove, clear, pause, resume, reset, updateName tidak ada perubahan) ...
   service.on('removeTimer').listen((data) async {
     if (data == null) return;
     final String idToRemove = data['id'] as String;

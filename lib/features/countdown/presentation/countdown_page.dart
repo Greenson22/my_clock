@@ -16,6 +16,8 @@ class CountdownPage extends StatefulWidget {
 class _CountdownPageState extends State<CountdownPage> {
   List<CountdownTimer> _activeTimers = [];
   final FlutterBackgroundService _service = FlutterBackgroundService();
+  // [BARU] State untuk mengontrol mode pengurutan
+  bool _isReorderEnabled = false;
 
   @override
   void initState() {
@@ -61,37 +63,179 @@ class _CountdownPageState extends State<CountdownPage> {
   void _stopAlarm() => _service.invoke('stopAlarm');
   void _clearAllTimers() => _service.invoke('clearAll');
 
-  // [BARU] Fungsi untuk menangani pengurutan ulang
   void _onReorder(int oldIndex, int newIndex) {
+    // Fungsi ini tidak berubah
     if (oldIndex < newIndex) {
       newIndex -= 1;
     }
     final CountdownTimer item = _activeTimers.removeAt(oldIndex);
     _activeTimers.insert(newIndex, item);
 
-    // Kirim state baru ke background service untuk disimpan
     _service.invoke('reorderTimers', {
       'timers': _activeTimers.map((t) => t.toJson()).toList(),
     });
 
-    // Perbarui UI secara lokal
     setState(() {});
   }
 
   // --- FUNGSI DIALOG ---
+  // ... (Semua fungsi dialog tidak berubah)
 
-  Future<void> _showEditIconDialog(CountdownTimer timer) async {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text("Multi Timer"),
+        actions: [
+          // [BARU] Tombol untuk mengaktifkan/menonaktifkan mode urut
+          if (_activeTimers.isNotEmpty)
+            IconButton(
+              icon: Icon(_isReorderEnabled ? Icons.check : Icons.drag_handle),
+              tooltip: _isReorderEnabled
+                  ? "Selesai Mengurutkan"
+                  : "Ubah Urutan",
+              onPressed: () {
+                setState(() {
+                  _isReorderEnabled = !_isReorderEnabled;
+                });
+              },
+            ),
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_outlined),
+            tooltip: "Hapus Semua Timer",
+            onPressed: _activeTimers.isEmpty
+                ? null
+                : _showClearAllConfirmationDialog,
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddTimerSheet,
+        label: const Text('Timer Baru'),
+        icon: const Icon(Icons.add_alarm),
+      ),
+      body: _activeTimers.isEmpty
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.hourglass_empty_rounded,
+                    size: 60,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    "Belum ada timer",
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            )
+          : ReorderableListView.builder(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
+              itemCount: _activeTimers.length,
+              // [MODIFIKASI] onReorder hanya berfungsi jika mode aktif
+              onReorder: _isReorderEnabled
+                  ? _onReorder
+                  : (oldIndex, newIndex) {},
+              itemBuilder: (context, index) {
+                final timer = _activeTimers[index];
+                return TimerCard(
+                  key: ValueKey(timer.id),
+                  timer: timer,
+                  // [BARU] Kirim status mode urut ke TimerCard
+                  isReorderEnabled: _isReorderEnabled,
+                  onStopAlarm: _stopAlarm,
+                  onResume: () =>
+                      _service.invoke('resumeTimer', {'id': timer.id}),
+                  onPause: () =>
+                      _service.invoke('pauseTimer', {'id': timer.id}),
+                  onReset: () =>
+                      _service.invoke('resetTimer', {'id': timer.id}),
+                  onDelete: () => _showDeleteConfirmationDialog(timer),
+                  onEditName: () => _showEditNameDialog(timer),
+                  onEditIcon: () => _showEditIconDialog(timer),
+                );
+              },
+            ),
+    );
+  }
+
+  // ... (Fungsi dialog lainnya tetap sama)
+  void _showAddTimerSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: AddTimerSheet(
+            onAddTimer: (name, timeString, alarmSoundPath, iconChar) {
+              _addTimer(name, timeString, alarmSoundPath, iconChar);
+              Navigator.pop(context);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showDeleteConfirmationDialog(CountdownTimer timer) {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
-        return EmojiPickerDialog(
-          initialEmoji: timer.iconChar,
-          onEmojiSelected: (emoji) {
-            _service.invoke('updateTimerIcon', {
-              'id': timer.id,
-              'iconChar': emoji,
-            });
-          },
+        return AlertDialog(
+          title: const Text('Hapus Timer'),
+          content: Text(
+            'Apakah Anda yakin ingin menghapus timer "${timer.name}"?',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Hapus'),
+              onPressed: () {
+                _service.invoke('removeTimer', {'id': timer.id});
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showClearAllConfirmationDialog() {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Konfirmasi'),
+          content: const Text('Apakah Anda yakin ingin menghapus semua timer?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Hapus Semua'),
+              onPressed: () {
+                _clearAllTimers();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
         );
       },
     );
@@ -137,147 +281,20 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  Future<void> _showClearAllConfirmationDialog() {
+  Future<void> _showEditIconDialog(CountdownTimer timer) async {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Konfirmasi'),
-          content: const Text('Apakah Anda yakin ingin menghapus semua timer?'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Batal'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Hapus Semua'),
-              onPressed: () {
-                _clearAllTimers();
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
+        return EmojiPickerDialog(
+          initialEmoji: timer.iconChar,
+          onEmojiSelected: (emoji) {
+            _service.invoke('updateTimerIcon', {
+              'id': timer.id,
+              'iconChar': emoji,
+            });
+          },
         );
       },
-    );
-  }
-
-  Future<void> _showDeleteConfirmationDialog(CountdownTimer timer) {
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Hapus Timer'),
-          content: Text(
-            'Apakah Anda yakin ingin menghapus timer "${timer.name}"?',
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Batal'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Hapus'),
-              onPressed: () {
-                _service.invoke('removeTimer', {'id': timer.id});
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showAddTimerSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: AddTimerSheet(
-            onAddTimer: (name, timeString, alarmSoundPath, iconChar) {
-              _addTimer(name, timeString, alarmSoundPath, iconChar);
-              Navigator.pop(context);
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text("Multi Timer"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_sweep_outlined),
-            tooltip: "Hapus Semua Timer",
-            onPressed: _activeTimers.isEmpty
-                ? null
-                : _showClearAllConfirmationDialog,
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddTimerSheet,
-        label: const Text('Timer Baru'),
-        icon: const Icon(Icons.add_alarm),
-      ),
-      body: _activeTimers.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.hourglass_empty_rounded,
-                    size: 60,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    "Belum ada timer",
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          // [MODIFIKASI] Gunakan ReorderableListView.builder
-          : ReorderableListView.builder(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
-              itemCount: _activeTimers.length,
-              itemBuilder: (context, index) {
-                final timer = _activeTimers[index];
-                return TimerCard(
-                  // [BARU] Key diperlukan untuk ReorderableListView
-                  key: ValueKey(timer.id),
-                  timer: timer,
-                  onStopAlarm: _stopAlarm,
-                  onResume: () =>
-                      _service.invoke('resumeTimer', {'id': timer.id}),
-                  onPause: () =>
-                      _service.invoke('pauseTimer', {'id': timer.id}),
-                  onReset: () =>
-                      _service.invoke('resetTimer', {'id': timer.id}),
-                  onDelete: () => _showDeleteConfirmationDialog(timer),
-                  onEditName: () => _showEditNameDialog(timer),
-                  onEditIcon: () => _showEditIconDialog(timer),
-                );
-              },
-              // [BARU] Callback saat item diurutkan ulang
-              onReorder: _onReorder,
-            ),
     );
   }
 }

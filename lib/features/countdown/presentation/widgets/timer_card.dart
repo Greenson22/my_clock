@@ -5,6 +5,7 @@ import '../../service/countdown_utils.dart';
 
 class TimerCard extends StatelessWidget {
   final CountdownTimer timer;
+  final bool isReorderEnabled; // [BARU] Terima status mode urut
   final VoidCallback onStopAlarm;
   final VoidCallback onResume;
   final VoidCallback onPause;
@@ -16,6 +17,7 @@ class TimerCard extends StatelessWidget {
   const TimerCard({
     super.key,
     required this.timer,
+    required this.isReorderEnabled, // [BARU] Tambahkan di konstruktor
     required this.onStopAlarm,
     required this.onResume,
     required this.onPause,
@@ -29,7 +31,6 @@ class TimerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
-
     final Color stateColor;
 
     if (isDone) {
@@ -59,21 +60,27 @@ class TimerCard extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 12, 8, 4), // Kurangi padding kiri
+        padding: const EdgeInsets.fromLTRB(4, 12, 8, 4),
         child: Column(
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
-              // [MODIFIKASI] Tambahkan handle untuk drag
               leading: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Handle untuk drag
-                  ReorderableDragStartListener(
-                    index: 0, // Indeks akan dikelola oleh ReorderableListView
-                    child: const Icon(Icons.drag_handle, color: Colors.grey),
+                  // [MODIFIKASI] Tampilkan drag handle secara kondisional
+                  SizedBox(
+                    width: 32,
+                    child: isReorderEnabled
+                        ? ReorderableDragStartListener(
+                            index: 0,
+                            child: const Icon(
+                              Icons.drag_handle,
+                              color: Colors.grey,
+                            ),
+                          )
+                        : null, // Kosongkan jika mode urut tidak aktif
                   ),
-                  // Ikon timer
                   InkWell(
                     onTap: onEditIcon,
                     borderRadius: BorderRadius.circular(24),

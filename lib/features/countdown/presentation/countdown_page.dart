@@ -1,41 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:file_picker/file_picker.dart';
 
-// [PERUBAHAN] Impor dari file-file yang sudah dipecah
 import '../service/countdown_model.dart';
 import '../service/countdown_utils.dart';
-
-// (TimeInputFormatter class tetap sama, tidak ada perubahan)
-class TimeInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) {
-      return newValue.copyWith(text: '');
-    }
-    String newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (newText.length > 6) {
-      newText = newText.substring(0, 6);
-    }
-    String formattedText = '';
-    for (int i = 0; i < newText.length; i++) {
-      formattedText += newText[i];
-      if ((i == 1 || i == 3) && i != newText.length - 1) {
-        formattedText += ':';
-      }
-    }
-    int selectionIndex = formattedText.length;
-    return TextEditingValue(
-      text: formattedText,
-      selection: TextSelection.collapsed(offset: selectionIndex),
-    );
-  }
-}
+import 'widgets/add_timer_sheet.dart';
+import 'widgets/timer_card.dart';
 
 class CountdownPage extends StatefulWidget {
   const CountdownPage({super.key});
@@ -71,8 +40,7 @@ class _CountdownPageState extends State<CountdownPage> {
     _service.invoke('requestInitialTimers');
   }
 
-  // (Sisa file tidak ada perubahan logika, karena semua fungsi dan kelas
-  // sekarang diimpor dari lokasi yang benar)
+  // --- FUNGSI KONTROL UI ---
   void _addTimer(String name, String timeString, String? alarmSoundPath) {
     final int totalSeconds = parseDuration(timeString);
     if (totalSeconds > 0) {
@@ -85,26 +53,15 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   void _stopAlarm() => _service.invoke('stopAlarm');
-  void _removeTimer(String id) => _service.invoke('removeTimer', {'id': id});
   void _clearAllTimers() => _service.invoke('clearAll');
-  void _pauseTimer(String id) => _service.invoke('pauseTimer', {'id': id});
-  void _resumeTimer(String id) => _service.invoke('resumeTimer', {'id': id});
-  void _resetTimer(String id) => _service.invoke('resetTimer', {'id': id});
 
-  void _updateTimerName(String id, String newName) {
-    if (newName.isNotEmpty) {
-      _service.invoke('updateTimerName', {'id': id, 'name': newName});
-    }
-  }
-
+  // --- FUNGSI DIALOG ---
   Future<void> _showEditNameDialog(CountdownTimer timer) async {
     final TextEditingController dialogNameController = TextEditingController(
       text: timer.name,
     );
-
     return showDialog<void>(
       context: context,
-      barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Ubah Nama Timer'),
@@ -124,7 +81,12 @@ class _CountdownPageState extends State<CountdownPage> {
             FilledButton(
               child: const Text('Simpan'),
               onPressed: () {
-                _updateTimerName(timer.id, dialogNameController.text);
+                if (dialogNameController.text.isNotEmpty) {
+                  _service.invoke('updateTimerName', {
+                    'id': timer.id,
+                    'name': dialogNameController.text,
+                  });
+                }
                 Navigator.of(context).pop();
               },
             ),
@@ -137,7 +99,6 @@ class _CountdownPageState extends State<CountdownPage> {
   Future<void> _showClearAllConfirmationDialog() async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Konfirmasi'),
@@ -164,7 +125,6 @@ class _CountdownPageState extends State<CountdownPage> {
   Future<void> _showDeleteConfirmationDialog(CountdownTimer timer) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Hapus Timer'),
@@ -174,15 +134,13 @@ class _CountdownPageState extends State<CountdownPage> {
           actions: <Widget>[
             TextButton(
               child: const Text('Batal'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: Colors.red),
               child: const Text('Hapus'),
               onPressed: () {
-                _removeTimer(timer.id);
+                _service.invoke('removeTimer', {'id': timer.id});
                 Navigator.of(context).pop();
               },
             ),
@@ -204,7 +162,7 @@ class _CountdownPageState extends State<CountdownPage> {
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: _AddTimerSheet(
+          child: AddTimerSheet(
             onAddTimer: (name, timeString, alarmSoundPath) {
               _addTimer(name, timeString, alarmSoundPath);
               Navigator.pop(context);
@@ -221,9 +179,6 @@ class _CountdownPageState extends State<CountdownPage> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text("Multi Timer"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 1,
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_sweep_outlined),
@@ -262,277 +217,20 @@ class _CountdownPageState extends State<CountdownPage> {
               itemCount: _activeTimers.length,
               itemBuilder: (context, index) {
                 final timer = _activeTimers[index];
-                return _buildModernTimerCard(timer);
+                return TimerCard(
+                  timer: timer,
+                  onStopAlarm: _stopAlarm,
+                  onResume: () =>
+                      _service.invoke('resumeTimer', {'id': timer.id}),
+                  onPause: () =>
+                      _service.invoke('pauseTimer', {'id': timer.id}),
+                  onReset: () =>
+                      _service.invoke('resetTimer', {'id': timer.id}),
+                  onDelete: () => _showDeleteConfirmationDialog(timer),
+                  onEditName: () => _showEditNameDialog(timer),
+                );
               },
             ),
-    );
-  }
-
-  Widget _buildModernTimerCard(CountdownTimer timer) {
-    final bool isPaused = timer.isPaused;
-    final bool isDone = timer.isDone;
-
-    final Color stateColor;
-    final IconData stateIcon;
-
-    if (isDone) {
-      stateColor = Colors.orange.shade700;
-      stateIcon = Icons.alarm_on;
-    } else if (isPaused) {
-      stateColor = Colors.grey.shade600;
-      stateIcon = Icons.pause_circle_filled;
-    } else {
-      stateColor = Theme.of(context).primaryColor;
-      stateIcon = Icons.play_circle_filled;
-    }
-
-    final double progress = timer.initialDurationSeconds > 0
-        ? timer.remainingSeconds / timer.initialDurationSeconds
-        : 0.0;
-
-    final String alarmInfo = timer.alarmSound != null
-        ? 'Alarm: ${timer.alarmSound!.split('/').last}'
-        : 'Alarm: Default';
-
-    return Card(
-      elevation: isPaused ? 1.0 : 3.0,
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isPaused ? Colors.grey.shade200 : stateColor,
-          width: 1.5,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
-        child: Column(
-          children: [
-            ListTile(
-              leading: Icon(stateIcon, color: stateColor, size: 40),
-              title: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      timer.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.edit_outlined,
-                      size: 20,
-                      color: Colors.grey.shade600,
-                    ),
-                    onPressed: () => _showEditNameDialog(timer),
-                    tooltip: 'Ubah Nama',
-                  ),
-                ],
-              ),
-              trailing: Text(
-                isDone ? "SELESAI" : formatDuration(timer.remainingSeconds),
-                style: TextStyle(
-                  fontSize: 22,
-                  fontFamily: 'monospace',
-                  color: stateColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: stateColor.withOpacity(0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(stateColor),
-                    minHeight: 6,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    alarmInfo,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            ButtonBar(
-              alignment: MainAxisAlignment.end,
-              children: [
-                if (isDone)
-                  FilledButton.icon(
-                    icon: const Icon(Icons.alarm_off),
-                    label: const Text("Matikan Alarm"),
-                    onPressed: _stopAlarm,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.orange.shade700,
-                    ),
-                  )
-                else if (isPaused)
-                  TextButton(
-                    onPressed: () => _resumeTimer(timer.id),
-                    child: const Text("Lanjutkan"),
-                  )
-                else
-                  TextButton(
-                    onPressed: () => _pauseTimer(timer.id),
-                    child: const Text("Jeda"),
-                  ),
-                if (isPaused)
-                  TextButton(
-                    onPressed: () => _resetTimer(timer.id),
-                    child: const Text("Reset"),
-                  ),
-                TextButton(
-                  onPressed: () => _showDeleteConfirmationDialog(timer),
-                  child: Text(
-                    "Hapus",
-                    style: TextStyle(color: Colors.red.shade700),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AddTimerSheet extends StatefulWidget {
-  final Function(String name, String timeString, String? alarmSoundPath)
-  onAddTimer;
-
-  const _AddTimerSheet({required this.onAddTimer});
-
-  @override
-  State<_AddTimerSheet> createState() => _AddTimerSheetState();
-}
-
-class _AddTimerSheetState extends State<_AddTimerSheet> {
-  late final TextEditingController _nameController;
-  late final TextEditingController _timeController;
-  File? _selectedAlarmFile;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: defaultTimerName);
-    _timeController = TextEditingController(text: defaultTimeString);
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _timeController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickAlarmSound() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.audio,
-    );
-
-    if (result != null) {
-      setState(() {
-        _selectedAlarmFile = File(result.files.single.path!);
-      });
-    }
-  }
-
-  void _handleAddTimer() {
-    final String name = _nameController.text.isNotEmpty
-        ? _nameController.text
-        : defaultTimerName;
-    widget.onAddTimer(name, _timeController.text, _selectedAlarmFile?.path);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final String alarmSoundText = _selectedAlarmFile != null
-        ? _selectedAlarmFile!.path.split('/').last
-        : 'Default';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Tambah Timer Baru',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: 'Nama Timer',
-              prefixIcon: const Icon(Icons.label_outline),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _timeController,
-            textAlign: TextAlign.center,
-            autofocus: true,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'monospace',
-            ),
-            decoration: InputDecoration(
-              labelText: 'Durasi (JJ:MM:DD)',
-              prefixIcon: const Icon(Icons.timer_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(6),
-              TimeInputFormatter(),
-            ],
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.music_note_outlined),
-            label: Expanded(
-              child: Text(alarmSoundText, overflow: TextOverflow.ellipsis),
-            ),
-            onPressed: _pickAlarmSound,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.centerLeft,
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            icon: const Icon(Icons.add_alarm),
-            label: const Text("SIMPAN TIMER"),
-            onPressed: _handleAddTimer,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -18,6 +18,7 @@ class _CountdownPageState extends State<CountdownPage> {
 
   @override
   void initState() {
+    // ... (initState tetap sama) ...
     super.initState();
     _service.startService();
     _service.invoke('setAsForeground');
@@ -40,18 +41,25 @@ class _CountdownPageState extends State<CountdownPage> {
     _service.invoke('requestInitialTimers');
   }
 
-  // --- FUNGSI KONTROL UI ---
-  void _addTimer(String name, String timeString, String? alarmSoundPath) {
+  // [PERUBAHAN] Fungsi _addTimer sekarang menerima parameter ikon
+  void _addTimer(
+    String name,
+    String timeString,
+    String? alarmSoundPath,
+    int? iconCodePoint,
+  ) {
     final int totalSeconds = parseDuration(timeString);
     if (totalSeconds > 0) {
       _service.invoke('addTimer', {
         'duration': totalSeconds,
         'name': name,
         'alarmSound': alarmSoundPath,
+        'iconCodePoint': iconCodePoint, // <-- Kirim data ikon
       });
     }
   }
 
+  // ... (sisa fungsi tidak ada perubahan) ...
   void _stopAlarm() => _service.invoke('stopAlarm');
   void _clearAllTimers() => _service.invoke('clearAll');
 
@@ -163,8 +171,9 @@ class _CountdownPageState extends State<CountdownPage> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: AddTimerSheet(
-            onAddTimer: (name, timeString, alarmSoundPath) {
-              _addTimer(name, timeString, alarmSoundPath);
+            // [PERUBAHAN] Sesuaikan callback untuk menerima data ikon
+            onAddTimer: (name, timeString, alarmSoundPath, iconCodePoint) {
+              _addTimer(name, timeString, alarmSoundPath, iconCodePoint);
               Navigator.pop(context);
             },
           ),
@@ -175,6 +184,7 @@ class _CountdownPageState extends State<CountdownPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ... (build method tetap sama) ...
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(

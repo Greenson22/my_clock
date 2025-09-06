@@ -29,18 +29,19 @@ class TimerCard extends StatelessWidget {
     final bool isDone = timer.isDone;
 
     final Color stateColor;
-    final IconData stateIcon;
 
     if (isDone) {
       stateColor = Colors.orange.shade700;
-      stateIcon = Icons.alarm_on;
     } else if (isPaused) {
       stateColor = Colors.grey.shade600;
-      stateIcon = Icons.pause_circle_filled;
     } else {
       stateColor = Theme.of(context).primaryColor;
-      stateIcon = Icons.play_circle_filled;
     }
+
+    // [PERUBAHAN] Tampilkan ikon kustom atau ikon default
+    final IconData displayIcon = timer.iconCodePoint != null
+        ? IconData(timer.iconCodePoint!, fontFamily: 'MaterialIcons')
+        : Icons.timer; // Ikon default jika tidak ada
 
     final double progress = timer.initialDurationSeconds > 0
         ? timer.remainingSeconds / timer.initialDurationSeconds
@@ -65,7 +66,11 @@ class TimerCard extends StatelessWidget {
         child: Column(
           children: [
             ListTile(
-              leading: Icon(stateIcon, color: stateColor, size: 40),
+              leading: Icon(
+                displayIcon,
+                color: stateColor,
+                size: 40,
+              ), // [PERUBAHAN] Gunakan displayIcon
               title: Row(
                 children: [
                   Expanded(
@@ -117,7 +122,6 @@ class TimerCard extends StatelessWidget {
                 ],
               ),
             ),
-            // [PERUBAHAN DI SINI] Ganti TextButton dengan IconButton
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

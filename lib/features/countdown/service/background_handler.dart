@@ -178,6 +178,7 @@ void onStart(ServiceInstance service) async {
       remainingSeconds: data['duration'] as int? ?? defaultTotalSeconds,
       isPaused: true,
       alarmSound: data['alarmSound'] as String?,
+      iconCodePoint: data['iconCodePoint'] as int?,
     );
     activeTimers.add(newTimer);
     await saveTimersToDisk(activeTimers);

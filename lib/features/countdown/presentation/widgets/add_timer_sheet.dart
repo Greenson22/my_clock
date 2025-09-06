@@ -5,9 +5,16 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../service/countdown_utils.dart';
 import '../formatters/time_input_formatter.dart';
+import 'icon_picker_dialog.dart'; // <-- IMPOR BARU
 
 class AddTimerSheet extends StatefulWidget {
-  final Function(String name, String timeString, String? alarmSoundPath)
+  // Callback sekarang mengirim kode ikon juga
+  final Function(
+    String name,
+    String timeString,
+    String? alarmSoundPath,
+    int? iconCodePoint,
+  )
   onAddTimer;
 
   const AddTimerSheet({super.key, required this.onAddTimer});
@@ -20,6 +27,7 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _timeController;
   File? _selectedAlarmFile;
+  IconData _selectedIcon = Icons.timer; // <-- State untuk menyimpan ikon
 
   @override
   void initState() {
@@ -46,11 +54,30 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     }
   }
 
+  void _showIconPicker() {
+    showDialog(
+      context: context,
+      builder: (_) => IconPickerDialog(
+        onIconSelected: (icon) {
+          setState(() {
+            _selectedIcon = icon;
+          });
+        },
+      ),
+    );
+  }
+
   void _handleAddTimer() {
     final String name = _nameController.text.isNotEmpty
         ? _nameController.text
         : defaultTimerName;
-    widget.onAddTimer(name, _timeController.text, _selectedAlarmFile?.path);
+    // Kirim codePoint dari ikon yang dipilih
+    widget.onAddTimer(
+      name,
+      _timeController.text,
+      _selectedAlarmFile?.path,
+      _selectedIcon.codePoint,
+    );
   }
 
   @override
@@ -71,15 +98,29 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 24),
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: 'Nama Timer',
-              prefixIcon: const Icon(Icons.label_outline),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+          Row(
+            // [PERUBAHAN] Bungkus TextField nama dengan Row
+            children: [
+              // Tombol untuk memilih ikon
+              IconButton(
+                icon: Icon(_selectedIcon),
+                iconSize: 32,
+                onPressed: _showIconPicker,
+                tooltip: 'Pilih Ikon',
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Timer',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           TextField(

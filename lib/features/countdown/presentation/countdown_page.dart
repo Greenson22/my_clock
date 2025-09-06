@@ -1,6 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // <-- IMPOR DIPERLUKAN
 import 'package:flutter_background_service/flutter_background_service.dart';
 import '../service/countdown_service.dart'; // Impor service (termasuk Model)
+
+// [BARU] TextInputFormatter kustom untuk format JJ:MM:DD
+class TimeInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Jika user menghapus semuanya atau string kosong
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    // Hanya ambil angka dari input
+    String newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+
+    // Batasi agar tidak lebih dari 6 digit (JJMMDD)
+    if (newText.length > 6) {
+      newText = newText.substring(0, 6);
+    }
+
+    String formattedText = '';
+    for (int i = 0; i < newText.length; i++) {
+      formattedText += newText[i];
+      if ((i == 1 || i == 3) && i != newText.length - 1) {
+        formattedText += ':';
+      }
+    }
+
+    // Cegah kursor berada di posisi yang salah (misalnya di belakang ':')
+    int selectionIndex = formattedText.length;
+
+    return TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: selectionIndex),
+    );
+  }
+}
 
 class CountdownPage extends StatefulWidget {
   const CountdownPage({super.key});
@@ -178,7 +217,13 @@ class _CountdownPageState extends State<CountdownPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              keyboardType: TextInputType.datetime,
+              // [PERUBAHAN] Terapkan formatter di sini
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+                TimeInputFormatter(),
+              ],
             ),
             const SizedBox(height: 16),
             FilledButton.icon(

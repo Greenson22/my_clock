@@ -1,8 +1,8 @@
-import 'dart:io'; // <-- IMPOR BARU
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:file_picker/file_picker.dart'; // <-- IMPOR BARU
+import 'package:file_picker/file_picker.dart';
 import '../service/countdown_service.dart';
 
 // ... (TimeInputFormatter class tetap sama) ...
@@ -67,19 +67,21 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   // --- FUNGSI KONTROL UI ---
-  // [PERUBAHAN] _addTimer sekarang menerima path alarm
   void _addTimer(String name, String timeString, String? alarmSoundPath) {
     final int totalSeconds = parseDuration(timeString);
     if (totalSeconds > 0) {
       _service.invoke('addTimer', {
         'duration': totalSeconds,
         'name': name,
-        'alarmSound': alarmSoundPath, // <-- Kirim path ke service
+        'alarmSound': alarmSoundPath,
       });
     }
   }
 
-  // ... (Sisa fungsi kontrol UI tidak berubah) ...
+  // [BARU] Fungsi untuk mengirim perintah mematikan alarm
+  void _stopAlarm() => _service.invoke('stopAlarm');
+
+  // ... (Sisa fungsi kontrol tidak berubah) ...
   void _removeTimer(String id) => _service.invoke('removeTimer', {'id': id});
   void _clearAllTimers() => _service.invoke('clearAll');
   void _pauseTimer(String id) => _service.invoke('pauseTimer', {'id': id});
@@ -201,12 +203,7 @@ class _CountdownPageState extends State<CountdownPage> {
           ),
           child: _AddTimerSheet(
             onAddTimer: (name, timeString, alarmSoundPath) {
-              // <-- Terima path alarm
-              _addTimer(
-                name,
-                timeString,
-                alarmSoundPath,
-              ); // <-- Kirim path alarm
+              _addTimer(name, timeString, alarmSoundPath);
               Navigator.pop(context);
             },
           ),
@@ -216,9 +213,9 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   // --- BUILD WIDGET UTAMA ---
-  // ... (Build method utama tidak berubah) ...
   @override
   Widget build(BuildContext context) {
+    // ... (Build method utama tidak berubah) ...
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -276,8 +273,8 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
+  // --- WIDGET HELPER ---
   Widget _buildModernTimerCard(CountdownTimer timer) {
-    // ... (Tidak ada perubahan di sini, kecuali mungkin menampilkan nama file alarm jika diinginkan) ...
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
 
@@ -285,8 +282,8 @@ class _CountdownPageState extends State<CountdownPage> {
     final IconData stateIcon;
 
     if (isDone) {
-      stateColor = Colors.green;
-      stateIcon = Icons.check_circle;
+      stateColor = Colors.orange.shade700; // Warna saat selesai/berbunyi
+      stateIcon = Icons.alarm_on;
     } else if (isPaused) {
       stateColor = Colors.grey.shade600;
       stateIcon = Icons.pause_circle_filled;
@@ -299,7 +296,6 @@ class _CountdownPageState extends State<CountdownPage> {
         ? timer.remainingSeconds / timer.initialDurationSeconds
         : 0.0;
 
-    // Opsi: Tampilkan nama file jika ada suara kustom
     final String alarmInfo = timer.alarmSound != null
         ? 'Alarm: ${timer.alarmSound!.split('/').last}'
         : 'Alarm: Default';
@@ -325,12 +321,9 @@ class _CountdownPageState extends State<CountdownPage> {
                   Expanded(
                     child: Text(
                       timer.name,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
-                        decoration: isDone
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -370,24 +363,36 @@ class _CountdownPageState extends State<CountdownPage> {
                   Text(
                     alarmInfo,
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ), // Tampilkan info alarm
+                  ),
                 ],
               ),
             ),
+            // [PERUBAHAN] Tampilkan tombol yang berbeda jika timer selesai
             ButtonBar(
               alignment: MainAxisAlignment.end,
               children: [
-                if (!isDone)
+                if (isDone)
+                  FilledButton.icon(
+                    icon: const Icon(Icons.alarm_off),
+                    label: const Text("Matikan Alarm"),
+                    onPressed: _stopAlarm,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.orange.shade700,
+                    ),
+                  )
+                else ...[
                   TextButton(
                     onPressed: () => isPaused
                         ? _resumeTimer(timer.id)
                         : _pauseTimer(timer.id),
                     child: Text(isPaused ? "Lanjutkan" : "Jeda"),
                   ),
-                TextButton(
-                  onPressed: () => _resetTimer(timer.id),
-                  child: const Text("Reset"),
-                ),
+                  TextButton(
+                    onPressed: () => _resetTimer(timer.id),
+                    child: const Text("Reset"),
+                  ),
+                ],
+
                 TextButton(
                   onPressed: () => _showDeleteConfirmationDialog(timer),
                   child: Text(
@@ -404,7 +409,7 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 }
 
-// [PERUBAHAN BESAR DI SINI] Widget terpisah untuk konten Bottom Sheet
+// ... (Widget _AddTimerSheet tidak berubah) ...
 class _AddTimerSheet extends StatefulWidget {
   // Callback sekarang mengirim path alarm juga
   final Function(String name, String timeString, String? alarmSoundPath)

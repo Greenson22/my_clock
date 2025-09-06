@@ -5,7 +5,7 @@ import '../service/countdown_model.dart';
 import '../service/countdown_utils.dart';
 import 'widgets/add_timer_sheet.dart';
 import 'widgets/timer_card.dart';
-import 'widgets/emoji_picker_dialog.dart'; // <-- Pastikan ini diimpor
+import 'widgets/emoji_picker_dialog.dart'; // Pastikan ini diimpor
 
 class CountdownPage extends StatefulWidget {
   const CountdownPage({super.key});
@@ -64,17 +64,20 @@ class _CountdownPageState extends State<CountdownPage> {
 
   // --- FUNGSI DIALOG ---
 
-  // [BARU] Fungsi dialog untuk mengubah ikon
+  // [MODIFIKASI] Fungsi dialog untuk mengubah ikon
   Future<void> _showEditIconDialog(CountdownTimer timer) async {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return EmojiPickerDialog(
+          // [BARU] Kirim ikon yang ada saat ini sebagai nilai awal
+          initialEmoji: timer.iconChar,
           onEmojiSelected: (emoji) {
             _service.invoke('updateTimerIcon', {
               'id': timer.id,
               'iconChar': emoji,
             });
+            // Tidak perlu pop navigator di sini karena dialog sudah melakukannya
           },
         );
       },
@@ -259,7 +262,7 @@ class _CountdownPageState extends State<CountdownPage> {
                   onEditName: () => _showEditNameDialog(timer),
                   onEditIcon: () => _showEditIconDialog(
                     timer,
-                  ), // <-- [BARU] Teruskan fungsi edit ikon
+                  ), // <-- Teruskan fungsi edit ikon
                 );
               },
             ),

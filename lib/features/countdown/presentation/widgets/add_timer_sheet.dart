@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../service/countdown_utils.dart';
 import '../formatters/time_input_formatter.dart';
-import 'emoji_picker_dialog.dart'; // <-- Pastikan file ini diimpor
+import 'emoji_picker_dialog.dart'; // Pastikan file ini diimpor
 
 class AddTimerSheet extends StatefulWidget {
   final Function(
@@ -25,7 +25,8 @@ class AddTimerSheet extends StatefulWidget {
 class _AddTimerSheetState extends State<AddTimerSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _timeController;
-  late final TextEditingController _iconController;
+  // [BARU] State untuk menyimpan karakter ikon yang dipilih
+  String _selectedIconChar = '⏱️';
   File? _selectedAlarmFile;
 
   @override
@@ -33,14 +34,12 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     super.initState();
     _nameController = TextEditingController(text: defaultTimerName);
     _timeController = TextEditingController(text: defaultTimeString);
-    _iconController = TextEditingController(text: '⏱️');
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _timeController.dispose();
-    _iconController.dispose();
     super.dispose();
   }
 
@@ -55,14 +54,17 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     }
   }
 
-  // [BARU] Fungsi untuk membuka dialog pemilih emoji
-  void _showEmojiPicker() {
+  // [MODIFIKASI] Fungsi untuk membuka dialog pemilih simbol
+  void _showIconPicker() {
     showDialog(
       context: context,
       builder: (_) => EmojiPickerDialog(
+        initialEmoji: _selectedIconChar, // Kirim ikon saat ini ke dialog
         onEmojiSelected: (emoji) {
-          // Update teks di dalam TextField saat emoji dipilih
-          _iconController.text = emoji;
+          // Update state saat emoji dipilih dari dialog
+          setState(() {
+            _selectedIconChar = emoji;
+          });
         },
       ),
     );
@@ -72,14 +74,11 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     final String name = _nameController.text.isNotEmpty
         ? _nameController.text
         : defaultTimerName;
-    final String iconChar = _iconController.text.isNotEmpty
-        ? _iconController.text
-        : '⏱️';
     widget.onAddTimer(
       name,
       _timeController.text,
       _selectedAlarmFile?.path,
-      iconChar,
+      _selectedIconChar, // Gunakan state ikon yang sudah dipilih
     );
   }
 
@@ -104,30 +103,25 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // TextField untuk input emoji dari keyboard
+              // [BARU] Tombol untuk membuka dialog pemilih ikon
               SizedBox(
-                width: 64,
-                child: TextField(
-                  controller: _iconController,
-                  textAlign: TextAlign.center,
-                  maxLength: 1,
-                  style: const TextStyle(fontSize: 32),
-                  decoration: const InputDecoration(
-                    counterText: "",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                width: 72,
+                height: 60,
+                child: OutlinedButton(
+                  onPressed: _showIconPicker,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  child: Text(
+                    _selectedIconChar,
+                    style: const TextStyle(fontSize: 32),
                   ),
                 ),
               ),
-              // [BARU] Tombol untuk membuka daftar emoji
-              IconButton(
-                icon: const Icon(Icons.emoji_emotions_outlined),
-                onPressed: _showEmojiPicker,
-                tooltip: 'Pilih dari daftar',
-              ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 12),
               Expanded(
                 child: TextField(
                   controller: _nameController,

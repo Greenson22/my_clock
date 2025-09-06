@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'features/countdown/presentation/countdown_page.dart';
+// Hapus impor CountdownPage
+// import 'features/countdown/presentation/countdown_page.dart';
+// Impor DashboardPage yang baru
+import 'features/dashboard/presentation/dashboard_page.dart';
 
 class AppWidget extends StatelessWidget {
   const AppWidget({super.key});
@@ -25,7 +28,8 @@ class AppWidget extends StatelessWidget {
         fontFamily: 'monospace',
       ),
       themeMode: ThemeMode.system, // Mengikuti tema sistem
-      home: const CountdownPage(),
+      // Ubah home dari CountdownPage ke DashboardPage
+      home: const DashboardPage(),
       debugShowCheckedModeBanner: false,
     );
   }

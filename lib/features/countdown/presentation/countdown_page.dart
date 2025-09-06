@@ -5,7 +5,7 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:file_picker/file_picker.dart';
 import '../service/countdown_service.dart';
 
-// ... (TimeInputFormatter class tetap sama) ...
+// (TimeInputFormatter class tetap sama, tidak ada perubahan)
 class TimeInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -46,7 +46,6 @@ class _CountdownPageState extends State<CountdownPage> {
 
   @override
   void initState() {
-    // ... (initState tetap sama) ...
     super.initState();
     _service.startService();
     _service.invoke('setAsForeground');
@@ -78,10 +77,7 @@ class _CountdownPageState extends State<CountdownPage> {
     }
   }
 
-  // [BARU] Fungsi untuk mengirim perintah mematikan alarm
   void _stopAlarm() => _service.invoke('stopAlarm');
-
-  // ... (Sisa fungsi kontrol tidak berubah) ...
   void _removeTimer(String id) => _service.invoke('removeTimer', {'id': id});
   void _clearAllTimers() => _service.invoke('clearAll');
   void _pauseTimer(String id) => _service.invoke('pauseTimer', {'id': id});
@@ -215,7 +211,6 @@ class _CountdownPageState extends State<CountdownPage> {
   // --- BUILD WIDGET UTAMA ---
   @override
   Widget build(BuildContext context) {
-    // ... (Build method utama tidak berubah) ...
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -233,7 +228,6 @@ class _CountdownPageState extends State<CountdownPage> {
           ),
         ],
       ),
-      // [BARU] Tambahkan FloatingActionButton
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddTimerSheet,
         label: const Text('Timer Baru'),
@@ -258,12 +252,7 @@ class _CountdownPageState extends State<CountdownPage> {
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(
-                8,
-                8,
-                8,
-                80,
-              ), // Padding bawah agar tidak tertutup FAB
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
               itemCount: _activeTimers.length,
               itemBuilder: (context, index) {
                 final timer = _activeTimers[index];
@@ -282,7 +271,7 @@ class _CountdownPageState extends State<CountdownPage> {
     final IconData stateIcon;
 
     if (isDone) {
-      stateColor = Colors.orange.shade700; // Warna saat selesai/berbunyi
+      stateColor = Colors.orange.shade700;
       stateIcon = Icons.alarm_on;
     } else if (isPaused) {
       stateColor = Colors.grey.shade600;
@@ -367,10 +356,11 @@ class _CountdownPageState extends State<CountdownPage> {
                 ],
               ),
             ),
-            // [PERUBAHAN] Tampilkan tombol yang berbeda jika timer selesai
+            // [PERBAIKAN DI SINI] Ubah logika untuk menampilkan tombol
             ButtonBar(
               alignment: MainAxisAlignment.end,
               children: [
+                // Tombol utama (Matikan Alarm, Lanjutkan, Jeda)
                 if (isDone)
                   FilledButton.icon(
                     icon: const Icon(Icons.alarm_off),
@@ -380,19 +370,25 @@ class _CountdownPageState extends State<CountdownPage> {
                       backgroundColor: Colors.orange.shade700,
                     ),
                   )
-                else ...[
+                else if (isPaused)
                   TextButton(
-                    onPressed: () => isPaused
-                        ? _resumeTimer(timer.id)
-                        : _pauseTimer(timer.id),
-                    child: Text(isPaused ? "Lanjutkan" : "Jeda"),
+                    onPressed: () => _resumeTimer(timer.id),
+                    child: const Text("Lanjutkan"),
+                  )
+                else // (jika sedang berjalan)
+                  TextButton(
+                    onPressed: () => _pauseTimer(timer.id),
+                    child: const Text("Jeda"),
                   ),
+
+                // Tampilkan tombol "Reset" jika timer dijeda atau sudah selesai
+                if (isPaused)
                   TextButton(
                     onPressed: () => _resetTimer(timer.id),
                     child: const Text("Reset"),
                   ),
-                ],
 
+                // Selalu tampilkan tombol "Hapus"
                 TextButton(
                   onPressed: () => _showDeleteConfirmationDialog(timer),
                   child: Text(
@@ -409,9 +405,8 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 }
 
-// ... (Widget _AddTimerSheet tidak berubah) ...
+// (Widget _AddTimerSheet tidak berubah)
 class _AddTimerSheet extends StatefulWidget {
-  // Callback sekarang mengirim path alarm juga
   final Function(String name, String timeString, String? alarmSoundPath)
   onAddTimer;
 
@@ -424,7 +419,7 @@ class _AddTimerSheet extends StatefulWidget {
 class _AddTimerSheetState extends State<_AddTimerSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _timeController;
-  File? _selectedAlarmFile; // <-- State untuk menyimpan file yang dipilih
+  File? _selectedAlarmFile;
 
   @override
   void initState() {
@@ -440,7 +435,6 @@ class _AddTimerSheetState extends State<_AddTimerSheet> {
     super.dispose();
   }
 
-  // Fungsi untuk memilih file audio
   Future<void> _pickAlarmSound() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.audio,
@@ -462,7 +456,6 @@ class _AddTimerSheetState extends State<_AddTimerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // Tampilkan nama file yang dipilih atau 'Default'
     final String alarmSoundText = _selectedAlarmFile != null
         ? _selectedAlarmFile!.path.split('/').last
         : 'Default';
@@ -514,7 +507,6 @@ class _AddTimerSheetState extends State<_AddTimerSheet> {
             ],
           ),
           const SizedBox(height: 16),
-          // Tombol untuk memilih alarm
           OutlinedButton.icon(
             icon: const Icon(Icons.music_note_outlined),
             label: Expanded(

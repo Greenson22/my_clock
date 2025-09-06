@@ -47,8 +47,8 @@ void onStart(ServiceInstance service) async {
 
   void onTick(Timer timer) async {
     bool stateChanged = false;
-    String notificationBodySummary = "";
 
+    // Bagian ini tetap sama: Logika untuk setiap timer (derkementasi, alarm, dll)
     for (final timer in activeTimers) {
       if (!timer.isPaused && !timer.isDone) {
         timer.remainingSeconds--;
@@ -87,28 +87,42 @@ void onStart(ServiceInstance service) async {
           );
         }
       }
-      final status = timer.isDone
-          ? "[Selesai]"
-          : (timer.isPaused ? "[Paused]" : "");
-      notificationBodySummary +=
-          "${timer.name}: ${formatDuration(timer.remainingSeconds)} $status\n";
     }
 
+    // Mengirim pembaruan ke UI
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
 
-    int runningCount = activeTimers
-        .where((t) => !t.isPaused && !t.isDone)
-        .length;
-    String title = runningCount > 0
-        ? "$runningCount Timer Berjalan"
-        : "Semua Timer Dijeda";
-    if (activeTimers.isEmpty) title = "Layanan Timer Aktif";
-    String content = activeTimers.isEmpty
-        ? "Tidak ada timer berjalan."
-        : notificationBodySummary.trim();
+    // --- MODIFIKASI DIMULAI DI SINI ---
 
+    // 1. Filter untuk mendapatkan timer yang benar-benar sedang berjalan
+    final runningTimers = activeTimers
+        .where((t) => !t.isPaused && !t.isDone)
+        .toList();
+    final int runningCount = runningTimers.length;
+
+    String title;
+    String content;
+
+    // 2. Tentukan judul dan konten notifikasi berdasarkan kondisi
+    if (runningCount > 0) {
+      // Jika ada timer yang berjalan, tampilkan jumlah dan daftarnya
+      title = "$runningCount Timer Berjalan";
+      content = runningTimers
+          .map((t) => "${t.name}: ${formatDuration(t.remainingSeconds)}")
+          .join('\n');
+    } else if (activeTimers.isNotEmpty) {
+      // Jika ada timer tapi semua dijeda/selesai
+      title = "Semua Timer Dijeda";
+      content = "Jalankan timer untuk melihat progres di sini.";
+    } else {
+      // Jika tidak ada timer sama sekali
+      title = "Layanan Timer Aktif";
+      content = "Tambahkan timer baru untuk memulai.";
+    }
+
+    // 3. Tampilkan notifikasi dengan judul dan konten yang sudah disesuaikan
     if (service is AndroidServiceInstance) {
       if (await service.isForegroundService()) {
         flutterLocalNotificationsPlugin.show(
@@ -121,13 +135,18 @@ void onStart(ServiceInstance service) async {
               'MY FOREGROUND SERVICE',
               icon: 'ic_bg_service_small',
               ongoing: true,
-              styleInformation: BigTextStyleInformation(''),
+              styleInformation: BigTextStyleInformation(
+                '',
+              ), // Memungkinkan teks panjang
             ),
           ),
         );
       }
     }
 
+    // --- MODIFIKASI SELESAI ---
+
+    // Bagian ini tetap sama: Simpan state dan hentikan ticker jika perlu
     if (stateChanged) await saveTimersToDisk(activeTimers);
     if (activeTimers.every((t) => t.isPaused || t.isDone)) {
       globalTicker?.cancel();
@@ -214,7 +233,7 @@ void onStart(ServiceInstance service) async {
     if (data == null) return;
     final timer = activeTimers.firstWhere((t) => t.id == data['id']);
     timer.isPaused = false;
-    timer.isDone = false;
+    timer.isDone = false; // Pastikan status 'done' direset saat dilanjutkan
     await saveTimersToDisk(activeTimers);
     startGlobalTickerIfNeeded();
   });

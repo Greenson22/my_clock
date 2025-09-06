@@ -9,11 +9,23 @@ class AppWidget extends StatelessWidget {
     return MaterialApp(
       title: 'Countdown App',
       theme: ThemeData(
-        primarySwatch: Colors.indigo,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
-        fontFamily: 'monospace', // Set font default jika ingin konsisten
+        fontFamily: 'monospace',
       ),
-      home: const CountdownPage(), // Halaman utama kita
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+        fontFamily: 'monospace',
+      ),
+      themeMode: ThemeMode.system, // Mengikuti tema sistem
+      home: const CountdownPage(),
       debugShowCheckedModeBanner: false,
     );
   }

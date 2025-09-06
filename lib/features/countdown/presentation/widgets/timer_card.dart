@@ -1,30 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:percent_indicator/circular_percent_indicator.dart';
 
 import '../../service/countdown_model.dart';
 import '../../service/countdown_utils.dart';
 
 class TimerCard extends StatelessWidget {
   final CountdownTimer timer;
-  final bool isReorderEnabled; // [BARU] Terima status mode urut
   final VoidCallback onStopAlarm;
   final VoidCallback onResume;
   final VoidCallback onPause;
   final VoidCallback onReset;
   final VoidCallback onDelete;
-  final VoidCallback onEditName;
-  final VoidCallback onEditIcon;
+  final VoidCallback onEdit;
 
   const TimerCard({
     super.key,
     required this.timer,
-    required this.isReorderEnabled, // [BARU] Tambahkan di konstruktor
     required this.onStopAlarm,
     required this.onResume,
     required this.onPause,
     required this.onReset,
     required this.onDelete,
-    required this.onEditName,
-    required this.onEditIcon,
+    required this.onEdit,
   });
 
   @override
@@ -32,168 +29,137 @@ class TimerCard extends StatelessWidget {
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
     final Color stateColor;
+    final theme = Theme.of(context);
 
     if (isDone) {
       stateColor = Colors.orange.shade700;
     } else if (isPaused) {
-      stateColor = Colors.grey.shade600;
+      stateColor = Colors.grey.shade500;
     } else {
-      stateColor = Theme.of(context).primaryColor;
+      stateColor = theme.colorScheme.primary;
     }
 
     final double progress = timer.initialDurationSeconds > 0
         ? timer.remainingSeconds / timer.initialDurationSeconds
         : 0.0;
 
-    final String alarmInfo = timer.alarmSound != null
-        ? 'Alarm: ${timer.alarmSound!.split('/').last}'
-        : 'Alarm: Default';
-
     return Card(
-      elevation: isPaused ? 1.0 : 3.0,
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isPaused ? Colors.grey.shade200 : stateColor,
-          width: 1.5,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 12, 8, 4),
-        child: Column(
-          children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Row(
-                mainAxisSize: MainAxisSize.min,
+      elevation: isPaused ? 0.5 : 2.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: InkWell(
+        onTap: onEdit,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // [MODIFIKASI] Tampilkan drag handle secara kondisional
-                  SizedBox(
-                    width: 32,
-                    child: isReorderEnabled
-                        ? ReorderableDragStartListener(
-                            index: 0,
-                            child: const Icon(
-                              Icons.drag_handle,
-                              color: Colors.grey,
-                            ),
-                          )
-                        : null, // Kosongkan jika mode urut tidak aktif
+                  Text(
+                    timer.iconChar ?? '⏱️',
+                    style: const TextStyle(fontSize: 28),
                   ),
-                  InkWell(
-                    onTap: onEditIcon,
-                    borderRadius: BorderRadius.circular(24),
-                    child: Tooltip(
-                      message: 'Ubah Simbol',
-                      child: SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: Center(
-                          child: Text(
-                            timer.iconChar ?? '⏱️',
-                            style: const TextStyle(fontSize: 36),
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'reset') {
+                        onReset();
+                      } else if (value == 'delete') {
+                        onDelete();
+                      }
+                    },
+                    itemBuilder: (BuildContext context) =>
+                        <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            value: 'reset',
+                            child: ListTile(
+                              leading: Icon(Icons.refresh),
+                              title: Text('Reset'),
+                            ),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                              ),
+                              title: Text(
+                                'Hapus',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ),
+                        ],
+                    icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: CircularPercentIndicator(
+                  radius: 55.0,
+                  lineWidth: 8.0,
+                  percent: progress,
+                  center: isDone
+                      ? Icon(Icons.alarm_on, size: 40, color: stateColor)
+                      : Text(
+                          formatDuration(timer.remainingSeconds),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              title: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      timer.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.edit_outlined,
-                      size: 20,
-                      color: Colors.grey.shade600,
-                    ),
-                    onPressed: onEditName,
-                    tooltip: 'Ubah Nama',
-                  ),
-                ],
-              ),
-              trailing: Text(
-                isDone ? "SELESAI" : formatDuration(timer.remainingSeconds),
-                style: TextStyle(
-                  fontSize: 22,
-                  fontFamily: 'monospace',
-                  color: stateColor,
-                  fontWeight: FontWeight.w600,
+                  progressColor: stateColor,
+                  backgroundColor: stateColor.withOpacity(0.2),
+                  circularStrokeCap: CircularStrokeCap.round,
                 ),
               ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Column(
                 children: [
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: stateColor.withOpacity(0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(stateColor),
-                    minHeight: 6,
-                    borderRadius: BorderRadius.circular(3),
+                  Text(
+                    timer.name,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    alarmInfo,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
+                  if (isDone)
+                    FilledButton.icon(
+                      icon: const Icon(Icons.alarm_off, size: 18),
+                      label: const Text("Matikan"),
+                      onPressed: onStopAlarm,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.orange.shade700,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                    )
+                  else if (isPaused)
+                    IconButton.filled(
+                      icon: const Icon(Icons.play_arrow),
+                      onPressed: onResume,
+                      tooltip: 'Lanjutkan',
+                    )
+                  else
+                    IconButton.filled(
+                      icon: const Icon(Icons.pause),
+                      onPressed: onPause,
+                      tooltip: 'Jeda',
+                      style: IconButton.styleFrom(
+                        backgroundColor: theme.colorScheme.secondaryContainer,
+                      ),
+                    ),
                 ],
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (isDone)
-                  FilledButton.icon(
-                    icon: const Icon(Icons.alarm_off, size: 20),
-                    label: const Text("Matikan Alarm"),
-                    onPressed: onStopAlarm,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      backgroundColor: Colors.orange.shade700,
-                    ),
-                  )
-                else if (isPaused)
-                  IconButton(
-                    icon: const Icon(Icons.play_arrow),
-                    onPressed: onResume,
-                    tooltip: 'Lanjutkan',
-                    color: Theme.of(context).primaryColorDark,
-                  )
-                else
-                  IconButton(
-                    icon: const Icon(Icons.pause),
-                    onPressed: onPause,
-                    tooltip: 'Jeda',
-                    color: Theme.of(context).primaryColorDark,
-                  ),
-                if (isPaused)
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    onPressed: onReset,
-                    tooltip: 'Reset',
-                    color: Colors.orange.shade800,
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: onDelete,
-                  tooltip: 'Hapus',
-                  color: Colors.red.shade700,
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

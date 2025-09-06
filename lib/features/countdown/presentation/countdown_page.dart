@@ -16,8 +16,6 @@ class CountdownPage extends StatefulWidget {
 class _CountdownPageState extends State<CountdownPage> {
   List<CountdownTimer> _activeTimers = [];
   final FlutterBackgroundService _service = FlutterBackgroundService();
-  // [BARU] State untuk mengontrol mode pengurutan
-  bool _isReorderEnabled = false;
 
   @override
   void initState() {
@@ -63,90 +61,69 @@ class _CountdownPageState extends State<CountdownPage> {
   void _stopAlarm() => _service.invoke('stopAlarm');
   void _clearAllTimers() => _service.invoke('clearAll');
 
-  void _onReorder(int oldIndex, int newIndex) {
-    // Fungsi ini tidak berubah
-    if (oldIndex < newIndex) {
-      newIndex -= 1;
-    }
-    final CountdownTimer item = _activeTimers.removeAt(oldIndex);
-    _activeTimers.insert(newIndex, item);
-
-    _service.invoke('reorderTimers', {
-      'timers': _activeTimers.map((t) => t.toJson()).toList(),
-    });
-
-    setState(() {});
-  }
-
-  // --- FUNGSI DIALOG ---
-  // ... (Semua fungsi dialog tidak berubah)
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text("Multi Timer"),
+        title: const Text(
+          "Multi Timer",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
         actions: [
-          // [BARU] Tombol untuk mengaktifkan/menonaktifkan mode urut
           if (_activeTimers.isNotEmpty)
             IconButton(
-              icon: Icon(_isReorderEnabled ? Icons.check : Icons.drag_handle),
-              tooltip: _isReorderEnabled
-                  ? "Selesai Mengurutkan"
-                  : "Ubah Urutan",
-              onPressed: () {
-                setState(() {
-                  _isReorderEnabled = !_isReorderEnabled;
-                });
-              },
+              icon: const Icon(Icons.delete_sweep_outlined),
+              tooltip: "Hapus Semua Timer",
+              onPressed: _showClearAllConfirmationDialog,
             ),
-          IconButton(
-            icon: const Icon(Icons.delete_sweep_outlined),
-            tooltip: "Hapus Semua Timer",
-            onPressed: _activeTimers.isEmpty
-                ? null
-                : _showClearAllConfirmationDialog,
-          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddTimerSheet,
         label: const Text('Timer Baru'),
-        icon: const Icon(Icons.add_alarm),
+        icon: const Icon(Icons.add),
       ),
       body: _activeTimers.isEmpty
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.hourglass_empty_rounded,
-                    size: 60,
-                    color: Colors.grey,
+                    size: 80,
+                    color: Colors.grey.shade400,
                   ),
-                  SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: 24),
+                  const Text(
                     "Belum ada timer",
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    style: TextStyle(fontSize: 20, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Tekan tombol 'Timer Baru' untuk memulai.",
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
             )
-          : ReorderableListView.builder(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
+          : GridView.builder(
+              padding: const EdgeInsets.all(16.0),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.8,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
               itemCount: _activeTimers.length,
-              // [MODIFIKASI] onReorder hanya berfungsi jika mode aktif
-              onReorder: _isReorderEnabled
-                  ? _onReorder
-                  : (oldIndex, newIndex) {},
               itemBuilder: (context, index) {
                 final timer = _activeTimers[index];
                 return TimerCard(
                   key: ValueKey(timer.id),
                   timer: timer,
-                  // [BARU] Kirim status mode urut ke TimerCard
-                  isReorderEnabled: _isReorderEnabled,
                   onStopAlarm: _stopAlarm,
                   onResume: () =>
                       _service.invoke('resumeTimer', {'id': timer.id}),
@@ -155,21 +132,19 @@ class _CountdownPageState extends State<CountdownPage> {
                   onReset: () =>
                       _service.invoke('resetTimer', {'id': timer.id}),
                   onDelete: () => _showDeleteConfirmationDialog(timer),
-                  onEditName: () => _showEditNameDialog(timer),
-                  onEditIcon: () => _showEditIconDialog(timer),
+                  onEdit: () => _showEditTimerDialog(timer),
                 );
               },
             ),
     );
   }
 
-  // ... (Fungsi dialog lainnya tetap sama)
   void _showAddTimerSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return Padding(
@@ -202,7 +177,9 @@ class _CountdownPageState extends State<CountdownPage> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
               child: const Text('Hapus'),
               onPressed: () {
                 _service.invoke('removeTimer', {'id': timer.id});
@@ -228,7 +205,9 @@ class _CountdownPageState extends State<CountdownPage> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
               child: const Text('Hapus Semua'),
               onPressed: () {
                 _clearAllTimers();
@@ -241,22 +220,52 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  Future<void> _showEditNameDialog(CountdownTimer timer) {
+  Future<void> _showEditTimerDialog(CountdownTimer timer) async {
     final TextEditingController dialogNameController = TextEditingController(
       text: timer.name,
     );
-    return showDialog<void>(
+
+    showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Ubah Nama Timer'),
-          content: TextField(
-            controller: dialogNameController,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Nama baru',
-              border: OutlineInputBorder(),
-            ),
+          title: const Text('Ubah Timer'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Tombol untuk mengubah ikon
+              InkWell(
+                onTap: () {
+                  Navigator.of(context).pop(); // Tutup dialog edit nama
+                  _showEditIconDialog(timer); // Buka dialog edit ikon
+                },
+                borderRadius: BorderRadius.circular(50),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        timer.iconChar ?? '⏱️',
+                        style: const TextStyle(fontSize: 40),
+                      ),
+                      const SizedBox(width: 10),
+                      const Icon(Icons.edit_outlined, color: Colors.grey),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Field untuk mengubah nama
+              TextField(
+                controller: dialogNameController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Nama timer',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
           actions: <Widget>[
             TextButton(

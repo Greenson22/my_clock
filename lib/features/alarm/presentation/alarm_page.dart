@@ -4,6 +4,7 @@ import '../service/alarm_model.dart';
 import '../service/alarm_service.dart';
 import '../widgets/add_alarm_sheet.dart';
 import '../widgets/alarm_card.dart';
+import '../widgets/edit_alarm_dialog.dart'; // Impor dialog edit
 
 class AlarmPage extends StatefulWidget {
   const AlarmPage({super.key});
@@ -50,11 +51,34 @@ class _AlarmPageState extends State<AlarmPage> {
     });
   }
 
+  // Fungsi untuk update nama alarm
+  void _updateAlarmLabel(Alarm alarm, String newLabel) {
+    alarm.label = newLabel;
+    setState(() {
+      _alarmService.updateAlarm(alarm);
+    });
+  }
+
   void _showAddAlarmSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) => AddAlarmSheet(onAddAlarm: _addAlarm),
+    );
+  }
+
+  // Fungsi untuk menampilkan dialog edit
+  Future<void> _showEditAlarmDialog(Alarm alarm) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return EditAlarmDialog(
+          alarm: alarm,
+          onSave: (newLabel) {
+            _updateAlarmLabel(alarm, newLabel);
+          },
+        );
+      },
     );
   }
 
@@ -98,6 +122,8 @@ class _AlarmPageState extends State<AlarmPage> {
                   alarm: alarm,
                   onToggle: () => _toggleAlarm(alarm.id),
                   onDelete: () => _deleteAlarm(alarm.id),
+                  // Panggil dialog edit saat card diklik
+                  onEdit: () => _showEditAlarmDialog(alarm),
                 );
               },
             ),

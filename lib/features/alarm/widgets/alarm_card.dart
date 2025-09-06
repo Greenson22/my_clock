@@ -5,12 +5,14 @@ class AlarmCard extends StatelessWidget {
   final Alarm alarm;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
+  final VoidCallback onEdit; // Tambahkan callback onEdit
 
   const AlarmCard({
     super.key,
     required this.alarm,
     required this.onToggle,
     required this.onDelete,
+    required this.onEdit, // Tambahkan parameter onEdit
   });
 
   @override
@@ -31,19 +33,27 @@ class AlarmCard extends StatelessWidget {
     );
 
     return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        title: Text(alarm.time.format(context), style: timeStyle),
-        subtitle: Text(alarm.label, style: labelStyle),
-        trailing: Wrap(
-          spacing: 0,
-          children: [
-            Switch(value: alarm.isActive, onChanged: (_) => onToggle()),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: onDelete,
-            ),
-          ],
+      // Bungkus dengan InkWell agar bisa diklik untuk edit
+      child: InkWell(
+        onTap: onEdit,
+        borderRadius: BorderRadius.circular(12),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          title: Text(alarm.time.format(context), style: timeStyle),
+          subtitle: Text(alarm.label, style: labelStyle),
+          trailing: Wrap(
+            spacing: 0,
+            children: [
+              Switch(value: alarm.isActive, onChanged: (_) => onToggle()),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: onDelete,
+              ),
+            ],
+          ),
         ),
       ),
     );

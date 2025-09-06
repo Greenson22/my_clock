@@ -48,7 +48,6 @@ void onStart(ServiceInstance service) async {
   void onTick(Timer timer) async {
     bool stateChanged = false;
 
-    // Bagian ini tetap sama: Logika untuk setiap timer (derkementasi, alarm, dll)
     for (final timer in activeTimers) {
       if (!timer.isPaused && !timer.isDone) {
         timer.remainingSeconds--;
@@ -71,14 +70,15 @@ void onStart(ServiceInstance service) async {
             FlutterRingtonePlayer().playAlarm(looping: true);
           }
 
+          // [MODIFIKASI] Kirim notifikasi ini ke kanal prioritas tinggi
           flutterLocalNotificationsPlugin.show(
             timer.id.hashCode,
             'Timer Selesai!',
             'Timer Anda "${timer.name}" telah berakhir.',
             const NotificationDetails(
               android: AndroidNotificationDetails(
-                notificationChannelId,
-                'MY FOREGROUND SERVICE',
+                finishedTimerChannelId, // <-- Gunakan ID kanal BARU
+                finishedTimerChannelName, // <-- Gunakan nama kanal BARU
                 importance: Importance.high,
                 priority: Priority.high,
                 ongoing: false,
@@ -94,9 +94,7 @@ void onStart(ServiceInstance service) async {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
 
-    // --- MODIFIKASI DIMULAI DI SINI ---
-
-    // 1. Filter untuk mendapatkan timer yang benar-benar sedang berjalan
+    // Filter untuk mendapatkan timer yang benar-benar sedang berjalan
     final runningTimers = activeTimers
         .where((t) => !t.isPaused && !t.isDone)
         .toList();
@@ -105,24 +103,21 @@ void onStart(ServiceInstance service) async {
     String title;
     String content;
 
-    // 2. Tentukan judul dan konten notifikasi berdasarkan kondisi
+    // Tentukan judul dan konten notifikasi berdasarkan kondisi
     if (runningCount > 0) {
-      // Jika ada timer yang berjalan, tampilkan jumlah dan daftarnya
       title = "$runningCount Timer Berjalan";
       content = runningTimers
           .map((t) => "${t.name}: ${formatDuration(t.remainingSeconds)}")
           .join('\n');
     } else if (activeTimers.isNotEmpty) {
-      // Jika ada timer tapi semua dijeda/selesai
       title = "Semua Timer Dijeda";
       content = "Jalankan timer untuk melihat progres di sini.";
     } else {
-      // Jika tidak ada timer sama sekali
       title = "Layanan Timer Aktif";
       content = "Tambahkan timer baru untuk memulai.";
     }
 
-    // 3. Tampilkan notifikasi dengan judul dan konten yang sudah disesuaikan
+    // Tampilkan notifikasi layanan utama di kanal prioritas rendah
     if (service is AndroidServiceInstance) {
       if (await service.isForegroundService()) {
         flutterLocalNotificationsPlugin.show(
@@ -131,22 +126,18 @@ void onStart(ServiceInstance service) async {
           content,
           const NotificationDetails(
             android: AndroidNotificationDetails(
-              notificationChannelId,
-              'MY FOREGROUND SERVICE',
+              notificationChannelId, // Kanal prioritas rendah
+              'Layanan Timer Berjalan',
               icon: 'ic_bg_service_small',
               ongoing: true,
-              styleInformation: BigTextStyleInformation(
-                '',
-              ), // Memungkinkan teks panjang
+              styleInformation: BigTextStyleInformation(''),
             ),
           ),
         );
       }
     }
 
-    // --- MODIFIKASI SELESAI ---
-
-    // Bagian ini tetap sama: Simpan state dan hentikan ticker jika perlu
+    // Simpan state dan hentikan ticker jika perlu
     if (stateChanged) await saveTimersToDisk(activeTimers);
     if (activeTimers.every((t) => t.isPaused || t.isDone)) {
       globalTicker?.cancel();
@@ -233,7 +224,7 @@ void onStart(ServiceInstance service) async {
     if (data == null) return;
     final timer = activeTimers.firstWhere((t) => t.id == data['id']);
     timer.isPaused = false;
-    timer.isDone = false; // Pastikan status 'done' direset saat dilanjutkan
+    timer.isDone = false;
     await saveTimersToDisk(activeTimers);
     startGlobalTickerIfNeeded();
   });
@@ -285,7 +276,6 @@ void onStart(ServiceInstance service) async {
       final newDuration = data['duration'] as int;
 
       timerToUpdate.initialDurationSeconds = newDuration;
-      // Reset sisa waktu ke durasi baru dan jeda timer
       timerToUpdate.remainingSeconds = newDuration;
       timerToUpdate.isPaused = true;
       timerToUpdate.isDone = false;
@@ -309,6 +299,5 @@ void onStart(ServiceInstance service) async {
         )
         .toList();
     await saveTimersToDisk(activeTimers);
-    // Tidak perlu invoke 'updateTimers' karena UI sudah diupdate secara lokal
   });
 }

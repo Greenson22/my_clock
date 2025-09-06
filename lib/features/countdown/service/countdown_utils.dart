@@ -9,6 +9,12 @@ const int defaultTotalSeconds = 10;
 const Uuid uuid = Uuid();
 const String kTimersStorageKey = "activeTimersListV2";
 
+// [BARU] Tambahkan konstanta untuk kanal notifikasi prioritas tinggi
+const String finishedTimerChannelId = 'finished_timers_channel';
+const String finishedTimerChannelName = 'Notifikasi Timer Selesai';
+const String finishedTimerChannelDesc =
+    'Kanal untuk notifikasi saat timer berakhir.';
+
 // --- FUNGSI HELPER ---
 int parseDuration(String hms) {
   try {

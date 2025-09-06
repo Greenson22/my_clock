@@ -53,6 +53,7 @@ dependencies:
   percent_indicator: ^4.2.3
   reorderable_grid_view: ^2.2.6
   provider: ^6.0.5
+  flutter_alarm_clock: ^0.1.2
 
 
 dev_dependencies:

@@ -6,7 +6,7 @@ class CountdownTimer {
   bool isPaused;
   bool isDone;
   final String? alarmSound;
-  final String? iconChar; // <-- [PERUBAHAN] Dari int? iconCodePoint
+  String? iconChar; // <-- [PERBAIKAN] Hapus keyword 'final' di sini
 
   CountdownTimer({
     required this.id,
@@ -16,7 +16,7 @@ class CountdownTimer {
     this.isPaused = false,
     this.isDone = false,
     this.alarmSound,
-    this.iconChar, // <-- [PERUBAHAN]
+    this.iconChar,
   });
 
   Map<String, dynamic> toJson() => {
@@ -27,7 +27,7 @@ class CountdownTimer {
     'isPaused': isPaused,
     'isDone': isDone,
     'alarmSound': alarmSound,
-    'iconChar': iconChar, // <-- [PERUBAHAN]
+    'iconChar': iconChar,
   };
 
   factory CountdownTimer.fromJson(Map<String, dynamic> json) => CountdownTimer(
@@ -38,6 +38,6 @@ class CountdownTimer {
     isPaused: json['isPaused'] as bool? ?? false,
     isDone: json['isDone'] as bool? ?? false,
     alarmSound: json['alarmSound'] as String?,
-    iconChar: json['iconChar'] as String?, // <-- [PERUBAHAN]
+    iconChar: json['iconChar'] as String?,
   );
 }

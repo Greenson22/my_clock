@@ -5,6 +5,7 @@ import '../service/countdown_model.dart';
 import '../service/countdown_utils.dart';
 import 'widgets/add_timer_sheet.dart';
 import 'widgets/timer_card.dart';
+import 'widgets/emoji_picker_dialog.dart'; // <-- Pastikan ini diimpor
 
 class CountdownPage extends StatefulWidget {
   const CountdownPage({super.key});
@@ -18,6 +19,7 @@ class _CountdownPageState extends State<CountdownPage> {
 
   @override
   void initState() {
+    // ... (initState tetap sama)
     super.initState();
     _service.startService();
     _service.invoke('setAsForeground');
@@ -40,7 +42,6 @@ class _CountdownPageState extends State<CountdownPage> {
     _service.invoke('requestInitialTimers');
   }
 
-  // [PERUBAHAN]
   void _addTimer(
     String name,
     String timeString,
@@ -53,17 +54,35 @@ class _CountdownPageState extends State<CountdownPage> {
         'duration': totalSeconds,
         'name': name,
         'alarmSound': alarmSoundPath,
-        'iconChar': iconChar, // <-- Kirim emoji
+        'iconChar': iconChar,
       });
     }
   }
 
-  // ... (sisa fungsi tidak ada perubahan) ...
   void _stopAlarm() => _service.invoke('stopAlarm');
   void _clearAllTimers() => _service.invoke('clearAll');
 
   // --- FUNGSI DIALOG ---
-  Future<void> _showEditNameDialog(CountdownTimer timer) async {
+
+  // [BARU] Fungsi dialog untuk mengubah ikon
+  Future<void> _showEditIconDialog(CountdownTimer timer) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return EmojiPickerDialog(
+          onEmojiSelected: (emoji) {
+            _service.invoke('updateTimerIcon', {
+              'id': timer.id,
+              'iconChar': emoji,
+            });
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showEditNameDialog(CountdownTimer timer) {
+    // ... (fungsi ini tidak berubah)
     final TextEditingController dialogNameController = TextEditingController(
       text: timer.name,
     );
@@ -103,7 +122,8 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  Future<void> _showClearAllConfirmationDialog() async {
+  Future<void> _showClearAllConfirmationDialog() {
+    // ... (fungsi ini tidak berubah)
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -129,7 +149,8 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  Future<void> _showDeleteConfirmationDialog(CountdownTimer timer) async {
+  Future<void> _showDeleteConfirmationDialog(CountdownTimer timer) {
+    // ... (fungsi ini tidak berubah)
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -158,6 +179,7 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   void _showAddTimerSheet() {
+    // ... (fungsi ini tidak berubah)
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -170,7 +192,6 @@ class _CountdownPageState extends State<CountdownPage> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: AddTimerSheet(
-            // [PERUBAHAN]
             onAddTimer: (name, timeString, alarmSoundPath, iconChar) {
               _addTimer(name, timeString, alarmSoundPath, iconChar);
               Navigator.pop(context);
@@ -183,7 +204,6 @@ class _CountdownPageState extends State<CountdownPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (build method tetap sama) ...
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -237,6 +257,9 @@ class _CountdownPageState extends State<CountdownPage> {
                       _service.invoke('resetTimer', {'id': timer.id}),
                   onDelete: () => _showDeleteConfirmationDialog(timer),
                   onEditName: () => _showEditNameDialog(timer),
+                  onEditIcon: () => _showEditIconDialog(
+                    timer,
+                  ), // <-- [BARU] Teruskan fungsi edit ikon
                 );
               },
             ),

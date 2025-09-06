@@ -4,7 +4,6 @@ import '../../service/countdown_model.dart';
 import '../../service/countdown_utils.dart';
 
 class TimerCard extends StatelessWidget {
-  // ... (konstruktor dan properti tidak berubah)
   final CountdownTimer timer;
   final VoidCallback onStopAlarm;
   final VoidCallback onResume;
@@ -12,6 +11,7 @@ class TimerCard extends StatelessWidget {
   final VoidCallback onReset;
   final VoidCallback onDelete;
   final VoidCallback onEditName;
+  final VoidCallback onEditIcon; // <-- [BARU] Callback untuk edit ikon
 
   const TimerCard({
     super.key,
@@ -22,11 +22,12 @@ class TimerCard extends StatelessWidget {
     required this.onReset,
     required this.onDelete,
     required this.onEditName,
+    required this.onEditIcon, // <-- [BARU] Tambahkan di konstruktor
   });
 
   @override
   Widget build(BuildContext context) {
-    // ... (logika warna dan progres tidak berubah)
+    // ... (logika warna, progress, dll tidak berubah)
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
 
@@ -64,9 +65,23 @@ class TimerCard extends StatelessWidget {
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Text(
-                timer.iconChar ?? '⏱️', // <-- Logika ini sudah benar
-                style: const TextStyle(fontSize: 36),
+              leading: InkWell(
+                // <-- [PERUBAHAN] Bungkus dengan InkWell
+                onTap: onEditIcon, // Panggil callback saat diklik
+                borderRadius: BorderRadius.circular(24),
+                child: Tooltip(
+                  message: 'Ubah Simbol',
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Center(
+                      child: Text(
+                        timer.iconChar ?? '⏱️',
+                        style: const TextStyle(fontSize: 36),
+                      ),
+                    ),
+                  ),
+                ),
               ),
               title: Row(
                 children: [

@@ -76,7 +76,6 @@ void onStart(ServiceInstance service) async {
             'Timer Selesai!',
             'Timer Anda "${timer.name}" telah berakhir.',
             const NotificationDetails(
-              // [PERBAIKAN] Ganti 'AndroidDetails' menjadi 'AndroidNotificationDetails'
               android: AndroidNotificationDetails(
                 notificationChannelId,
                 'MY FOREGROUND SERVICE',
@@ -230,6 +229,20 @@ void onStart(ServiceInstance service) async {
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
+  });
+
+  service.on('updateTimerIcon').listen((data) async {
+    if (data == null) return;
+    try {
+      final timerToUpdate = activeTimers.firstWhere((t) => t.id == data['id']);
+      timerToUpdate.iconChar = data['iconChar'] as String?;
+      await saveTimersToDisk(activeTimers);
+      service.invoke('updateTimers', {
+        'timers': activeTimers.map((t) => t.toJson()).toList(),
+      });
+    } catch (e) {
+      // Timer tidak ditemukan
+    }
   });
 
   service.on('updateTimerName').listen((data) async {

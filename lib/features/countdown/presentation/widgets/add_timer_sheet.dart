@@ -5,15 +5,14 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../service/countdown_utils.dart';
 import '../formatters/time_input_formatter.dart';
-import 'icon_picker_dialog.dart'; // <-- IMPOR BARU
+import 'emoji_picker_dialog.dart'; // <-- IMPOR BARU
 
 class AddTimerSheet extends StatefulWidget {
-  // Callback sekarang mengirim kode ikon juga
   final Function(
     String name,
     String timeString,
     String? alarmSoundPath,
-    int? iconCodePoint,
+    String? iconChar,
   )
   onAddTimer;
 
@@ -27,7 +26,7 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _timeController;
   File? _selectedAlarmFile;
-  IconData _selectedIcon = Icons.timer; // <-- State untuk menyimpan ikon
+  String _selectedEmoji = '⏱️'; // <-- [PERUBAHAN] State untuk menyimpan emoji
 
   @override
   void initState() {
@@ -54,13 +53,13 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     }
   }
 
-  void _showIconPicker() {
+  void _showEmojiPicker() {
     showDialog(
       context: context,
-      builder: (_) => IconPickerDialog(
-        onIconSelected: (icon) {
+      builder: (_) => EmojiPickerDialog(
+        onEmojiSelected: (emoji) {
           setState(() {
-            _selectedIcon = icon;
+            _selectedEmoji = emoji;
           });
         },
       ),
@@ -71,12 +70,11 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     final String name = _nameController.text.isNotEmpty
         ? _nameController.text
         : defaultTimerName;
-    // Kirim codePoint dari ikon yang dipilih
     widget.onAddTimer(
       name,
       _timeController.text,
       _selectedAlarmFile?.path,
-      _selectedIcon.codePoint,
+      _selectedEmoji,
     );
   }
 
@@ -99,14 +97,20 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
           ),
           const SizedBox(height: 24),
           Row(
-            // [PERUBAHAN] Bungkus TextField nama dengan Row
             children: [
-              // Tombol untuk memilih ikon
-              IconButton(
-                icon: Icon(_selectedIcon),
-                iconSize: 32,
-                onPressed: _showIconPicker,
-                tooltip: 'Pilih Ikon',
+              InkWell(
+                onTap: _showEmojiPicker,
+                borderRadius: BorderRadius.circular(24),
+                child: Tooltip(
+                  message: 'Pilih Simbol',
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      _selectedEmoji,
+                      style: const TextStyle(fontSize: 32),
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(

@@ -38,11 +38,6 @@ class TimerCard extends StatelessWidget {
       stateColor = Theme.of(context).primaryColor;
     }
 
-    // [PERUBAHAN] Tampilkan ikon kustom atau ikon default
-    final IconData displayIcon = timer.iconCodePoint != null
-        ? IconData(timer.iconCodePoint!, fontFamily: 'MaterialIcons')
-        : Icons.timer; // Ikon default jika tidak ada
-
     final double progress = timer.initialDurationSeconds > 0
         ? timer.remainingSeconds / timer.initialDurationSeconds
         : 0.0;
@@ -62,15 +57,16 @@ class TimerCard extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+        padding: const EdgeInsets.fromLTRB(12, 12, 8, 4),
         child: Column(
           children: [
             ListTile(
-              leading: Icon(
-                displayIcon,
-                color: stateColor,
-                size: 40,
-              ), // [PERUBAHAN] Gunakan displayIcon
+              contentPadding: EdgeInsets.zero,
+              leading: Text(
+                // <-- [PERUBAHAN] Ganti Icon dengan Text
+                timer.iconChar ?? '⏱️',
+                style: const TextStyle(fontSize: 36),
+              ),
               title: Row(
                 children: [
                   Expanded(

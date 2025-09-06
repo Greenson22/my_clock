@@ -18,7 +18,6 @@ class _CountdownPageState extends State<CountdownPage> {
 
   @override
   void initState() {
-    // ... (initState tetap sama) ...
     super.initState();
     _service.startService();
     _service.invoke('setAsForeground');
@@ -41,12 +40,12 @@ class _CountdownPageState extends State<CountdownPage> {
     _service.invoke('requestInitialTimers');
   }
 
-  // [PERUBAHAN] Fungsi _addTimer sekarang menerima parameter ikon
+  // [PERUBAHAN]
   void _addTimer(
     String name,
     String timeString,
     String? alarmSoundPath,
-    int? iconCodePoint,
+    String? iconChar,
   ) {
     final int totalSeconds = parseDuration(timeString);
     if (totalSeconds > 0) {
@@ -54,7 +53,7 @@ class _CountdownPageState extends State<CountdownPage> {
         'duration': totalSeconds,
         'name': name,
         'alarmSound': alarmSoundPath,
-        'iconCodePoint': iconCodePoint, // <-- Kirim data ikon
+        'iconChar': iconChar, // <-- Kirim emoji
       });
     }
   }
@@ -171,9 +170,9 @@ class _CountdownPageState extends State<CountdownPage> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: AddTimerSheet(
-            // [PERUBAHAN] Sesuaikan callback untuk menerima data ikon
-            onAddTimer: (name, timeString, alarmSoundPath, iconCodePoint) {
-              _addTimer(name, timeString, alarmSoundPath, iconCodePoint);
+            // [PERUBAHAN]
+            onAddTimer: (name, timeString, alarmSoundPath, iconChar) {
+              _addTimer(name, timeString, alarmSoundPath, iconChar);
               Navigator.pop(context);
             },
           ),

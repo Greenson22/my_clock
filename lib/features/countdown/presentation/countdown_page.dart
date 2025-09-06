@@ -5,7 +5,7 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:file_picker/file_picker.dart';
 import '../service/countdown_service.dart';
 
-// (TimeInputFormatter class tetap sama, tidak ada perubahan)
+// (TimeInputFormatter class tetap sama)
 class TimeInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -49,6 +49,7 @@ class _CountdownPageState extends State<CountdownPage> {
     super.initState();
     _service.startService();
     _service.invoke('setAsForeground');
+
     _service.on('updateTimers').listen((data) {
       if (data == null || data['timers'] == null) return;
       final List timerDataList = data['timers'] as List;
@@ -63,9 +64,12 @@ class _CountdownPageState extends State<CountdownPage> {
         });
       }
     });
+
+    // [PERBAIKAN] Minta daftar timer saat UI siap
+    _service.invoke('requestInitialTimers');
   }
 
-  // --- FUNGSI KONTROL UI ---
+  // (Sisa file tidak ada perubahan)
   void _addTimer(String name, String timeString, String? alarmSoundPath) {
     final int totalSeconds = parseDuration(timeString);
     if (totalSeconds > 0) {
@@ -208,7 +212,6 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  // --- BUILD WIDGET UTAMA ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -262,7 +265,6 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  // --- WIDGET HELPER ---
   Widget _buildModernTimerCard(CountdownTimer timer) {
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
@@ -356,11 +358,9 @@ class _CountdownPageState extends State<CountdownPage> {
                 ],
               ),
             ),
-            // [PERBAIKAN DI SINI] Ubah logika untuk menampilkan tombol
             ButtonBar(
               alignment: MainAxisAlignment.end,
               children: [
-                // Tombol utama (Matikan Alarm, Lanjutkan, Jeda)
                 if (isDone)
                   FilledButton.icon(
                     icon: const Icon(Icons.alarm_off),
@@ -375,20 +375,16 @@ class _CountdownPageState extends State<CountdownPage> {
                     onPressed: () => _resumeTimer(timer.id),
                     child: const Text("Lanjutkan"),
                   )
-                else // (jika sedang berjalan)
+                else
                   TextButton(
                     onPressed: () => _pauseTimer(timer.id),
                     child: const Text("Jeda"),
                   ),
-
-                // Tampilkan tombol "Reset" jika timer dijeda atau sudah selesai
                 if (isPaused)
                   TextButton(
                     onPressed: () => _resetTimer(timer.id),
                     child: const Text("Reset"),
                   ),
-
-                // Selalu tampilkan tombol "Hapus"
                 TextButton(
                   onPressed: () => _showDeleteConfirmationDialog(timer),
                   child: Text(
@@ -405,7 +401,6 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 }
 
-// (Widget _AddTimerSheet tidak berubah)
 class _AddTimerSheet extends StatefulWidget {
   final Function(String name, String timeString, String? alarmSoundPath)
   onAddTimer;

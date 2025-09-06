@@ -163,11 +163,10 @@ void onStart(ServiceInstance service) async {
           timer.isDone = true;
           timer.isPaused = true;
 
-          // [PERUBAHAN] Logika memainkan alarm secara berulang
           if (timer.alarmSound != null && timer.alarmSound!.isNotEmpty) {
             try {
               await audioPlayer.setFilePath(timer.alarmSound!);
-              audioPlayer.setLoopMode(LoopMode.one); // Set agar berulang
+              audioPlayer.setLoopMode(LoopMode.one);
               audioPlayer.play();
             } catch (e) {
               FlutterRingtonePlayer().playAlarm(looping: true);
@@ -199,7 +198,6 @@ void onStart(ServiceInstance service) async {
           "${timer.name}: ${formatDuration(timer.remainingSeconds)} $status\n";
     }
 
-    // ... sisa fungsi onTick tidak berubah ...
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
@@ -243,14 +241,12 @@ void onStart(ServiceInstance service) async {
     }
   }
 
-  // ... startGlobalTickerIfNeeded & onStart startup logic tidak berubah ...
   void startGlobalTickerIfNeeded() {
     if (globalTicker == null || !globalTicker!.isActive) {
       globalTicker = Timer.periodic(const Duration(seconds: 1), onTick);
     }
   }
 
-  // --- SAAT SERVICE STARTUP --- (Tidak ada perubahan)
   activeTimers = await loadTimersFromDisk();
   service.invoke('updateTimers', {
     'timers': activeTimers.map((t) => t.toJson()).toList(),
@@ -259,7 +255,6 @@ void onStart(ServiceInstance service) async {
     startGlobalTickerIfNeeded();
   }
 
-  // --- Event Listeners ---
   if (service is AndroidServiceInstance) {
     service
         .on('setAsForeground')
@@ -270,17 +265,21 @@ void onStart(ServiceInstance service) async {
   }
   service.on('stopService').listen((event) => service.stopSelf());
 
-  // [BARU] Listener untuk mematikan semua alarm
   service.on('stopAlarm').listen((event) {
     audioPlayer.stop();
     FlutterRingtonePlayer().stop();
   });
 
-  // ... sisa listener tidak ada perubahan ...
+  // [BARU] Tambahkan listener ini
+  service.on('requestInitialTimers').listen((event) {
+    service.invoke('updateTimers', {
+      'timers': activeTimers.map((t) => t.toJson()).toList(),
+    });
+  });
+
   service.on('addTimer').listen((data) async {
     if (data == null) return;
     final int duration = data['duration'] as int? ?? defaultTotalSeconds;
-    // [BARU] Ambil path suara dari data
     final String? alarmSound = data['alarmSound'] as String?;
 
     final newTimer = CountdownTimer(
@@ -290,7 +289,7 @@ void onStart(ServiceInstance service) async {
       remainingSeconds: duration,
       isPaused: true,
       isDone: false,
-      alarmSound: alarmSound, // <-- [BARU] Simpan path suara
+      alarmSound: alarmSound,
     );
 
     activeTimers.add(newTimer);
@@ -300,7 +299,6 @@ void onStart(ServiceInstance service) async {
     });
   });
 
-  // ... (Sisa listener: remove, clear, pause, resume, reset, updateName tidak ada perubahan) ...
   service.on('removeTimer').listen((data) async {
     if (data == null) return;
     final String idToRemove = data['id'] as String;
@@ -373,7 +371,7 @@ void onStart(ServiceInstance service) async {
         'timers': activeTimers.map((t) => t.toJson()).toList(),
       });
     } catch (e) {
-      // Timer tidak ditemukan, abaikan
+      // Timer tidak ditemukan
     }
   });
 }

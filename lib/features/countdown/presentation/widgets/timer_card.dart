@@ -4,6 +4,7 @@ import '../../service/countdown_model.dart';
 import '../../service/countdown_utils.dart';
 
 class TimerCard extends StatelessWidget {
+  // ... (konstruktor dan properti tidak berubah)
   final CountdownTimer timer;
   final VoidCallback onStopAlarm;
   final VoidCallback onResume;
@@ -25,6 +26,7 @@ class TimerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ... (logika warna dan progres tidak berubah)
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
 
@@ -63,8 +65,7 @@ class TimerCard extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Text(
-                // <-- [PERUBAHAN] Ganti Icon dengan Text
-                timer.iconChar ?? '⏱️',
+                timer.iconChar ?? '⏱️', // <-- Logika ini sudah benar
                 style: const TextStyle(fontSize: 36),
               ),
               title: Row(

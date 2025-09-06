@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../service/countdown_utils.dart';
 import '../formatters/time_input_formatter.dart';
-import 'emoji_picker_dialog.dart'; // <-- IMPOR BARU
+import 'emoji_picker_dialog.dart'; // <-- Pastikan file ini diimpor
 
 class AddTimerSheet extends StatefulWidget {
   final Function(
@@ -25,20 +25,22 @@ class AddTimerSheet extends StatefulWidget {
 class _AddTimerSheetState extends State<AddTimerSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _timeController;
+  late final TextEditingController _iconController;
   File? _selectedAlarmFile;
-  String _selectedEmoji = '⏱️'; // <-- [PERUBAHAN] State untuk menyimpan emoji
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: defaultTimerName);
     _timeController = TextEditingController(text: defaultTimeString);
+    _iconController = TextEditingController(text: '⏱️');
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _timeController.dispose();
+    _iconController.dispose();
     super.dispose();
   }
 
@@ -53,14 +55,14 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     }
   }
 
+  // [BARU] Fungsi untuk membuka dialog pemilih emoji
   void _showEmojiPicker() {
     showDialog(
       context: context,
       builder: (_) => EmojiPickerDialog(
         onEmojiSelected: (emoji) {
-          setState(() {
-            _selectedEmoji = emoji;
-          });
+          // Update teks di dalam TextField saat emoji dipilih
+          _iconController.text = emoji;
         },
       ),
     );
@@ -70,11 +72,14 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     final String name = _nameController.text.isNotEmpty
         ? _nameController.text
         : defaultTimerName;
+    final String iconChar = _iconController.text.isNotEmpty
+        ? _iconController.text
+        : '⏱️';
     widget.onAddTimer(
       name,
       _timeController.text,
       _selectedAlarmFile?.path,
-      _selectedEmoji,
+      iconChar,
     );
   }
 
@@ -97,22 +102,32 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
           ),
           const SizedBox(height: 24),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              InkWell(
-                onTap: _showEmojiPicker,
-                borderRadius: BorderRadius.circular(24),
-                child: Tooltip(
-                  message: 'Pilih Simbol',
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      _selectedEmoji,
-                      style: const TextStyle(fontSize: 32),
+              // TextField untuk input emoji dari keyboard
+              SizedBox(
+                width: 64,
+                child: TextField(
+                  controller: _iconController,
+                  textAlign: TextAlign.center,
+                  maxLength: 1,
+                  style: const TextStyle(fontSize: 32),
+                  decoration: const InputDecoration(
+                    counterText: "",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
                     ),
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              // [BARU] Tombol untuk membuka daftar emoji
+              IconButton(
+                icon: const Icon(Icons.emoji_emotions_outlined),
+                onPressed: _showEmojiPicker,
+                tooltip: 'Pilih dari daftar',
+              ),
+              const SizedBox(width: 4),
               Expanded(
                 child: TextField(
                   controller: _nameController,
@@ -130,7 +145,6 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
           TextField(
             controller: _timeController,
             textAlign: TextAlign.center,
-            autofocus: true,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,

@@ -259,6 +259,27 @@ void onStart(ServiceInstance service) async {
     }
   });
 
+  service.on('updateTimerDuration').listen((data) async {
+    if (data == null) return;
+    try {
+      final timerToUpdate = activeTimers.firstWhere((t) => t.id == data['id']);
+      final newDuration = data['duration'] as int;
+
+      timerToUpdate.initialDurationSeconds = newDuration;
+      // Reset sisa waktu ke durasi baru dan jeda timer
+      timerToUpdate.remainingSeconds = newDuration;
+      timerToUpdate.isPaused = true;
+      timerToUpdate.isDone = false;
+
+      await saveTimersToDisk(activeTimers);
+      service.invoke('updateTimers', {
+        'timers': activeTimers.map((t) => t.toJson()).toList(),
+      });
+    } catch (e) {
+      // Timer tidak ditemukan
+    }
+  });
+
   service.on('reorderTimers').listen((data) async {
     if (data == null || data['timers'] == null) return;
     final List timerDataList = data['timers'] as List;

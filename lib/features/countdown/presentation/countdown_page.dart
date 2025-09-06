@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-// Impor package yang baru ditambahkan
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 import '../service/countdown_model.dart';
@@ -8,6 +8,7 @@ import '../service/countdown_utils.dart';
 import 'widgets/add_timer_sheet.dart';
 import 'widgets/timer_card.dart';
 import 'widgets/emoji_picker_dialog.dart';
+import 'formatters/time_input_formatter.dart';
 
 class CountdownPage extends StatefulWidget {
   const CountdownPage({super.key});
@@ -18,15 +19,22 @@ class CountdownPage extends StatefulWidget {
 class _CountdownPageState extends State<CountdownPage> {
   List<CountdownTimer> _activeTimers = [];
   final FlutterBackgroundService _service = FlutterBackgroundService();
-  // [KEMBALIKAN] State untuk mengontrol mode pengurutan
   bool _isReorderEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    _service.startService();
+    // Panggil fungsi inisialisasi yang baru
+    initializeAndLoadTimers();
+  }
+
+  // [BARU] Buat fungsi async untuk inisialisasi
+  Future<void> initializeAndLoadTimers() async {
+    // Pastikan service sudah berjalan sebelum melanjutkan
+    await _service.startService();
     _service.invoke('setAsForeground');
 
+    // Setup listener untuk menerima update data timer
     _service.on('updateTimers').listen((data) {
       if (data == null || data['timers'] == null) return;
       final List timerDataList = data['timers'] as List;
@@ -42,6 +50,7 @@ class _CountdownPageState extends State<CountdownPage> {
       }
     });
 
+    // Minta data timer awal setelah semuanya siap
     _service.invoke('requestInitialTimers');
   }
 
@@ -65,15 +74,11 @@ class _CountdownPageState extends State<CountdownPage> {
   void _stopAlarm() => _service.invoke('stopAlarm');
   void _clearAllTimers() => _service.invoke('clearAll');
 
-  // [KEMBALIKAN] Fungsi untuk menangani event reorder
   void _onReorder(int oldIndex, int newIndex) {
-    // Pastikan state diupdate agar UI terasa responsif
     setState(() {
       final CountdownTimer item = _activeTimers.removeAt(oldIndex);
       _activeTimers.insert(newIndex, item);
     });
-
-    // Kirim urutan baru ke background service untuk disimpan
     _service.invoke('reorderTimers', {
       'timers': _activeTimers.map((t) => t.toJson()).toList(),
     });
@@ -91,7 +96,6 @@ class _CountdownPageState extends State<CountdownPage> {
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         actions: [
-          // [KEMBALIKAN] Tombol untuk mengaktifkan mode urut
           if (_activeTimers.length > 1)
             IconButton(
               icon: Icon(_isReorderEnabled ? Icons.check : Icons.drag_handle),
@@ -119,9 +123,28 @@ class _CountdownPageState extends State<CountdownPage> {
       ),
       body: _activeTimers.isEmpty
           ? Center(
-              // ... (Widget untuk state kosong tidak berubah)
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.hourglass_empty_rounded,
+                    size: 80,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    "Belum ada timer",
+                    style: TextStyle(fontSize: 20, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Tekan tombol 'Timer Baru' untuk memulai.",
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             )
-          // [UBAH] Gunakan ReorderableGridView.builder
           : ReorderableGridView.builder(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -131,17 +154,13 @@ class _CountdownPageState extends State<CountdownPage> {
                 mainAxisSpacing: 16,
               ),
               itemCount: _activeTimers.length,
-              dragEnabled:
-                  _isReorderEnabled, // Kontrol drag hanya saat mode aktif
+              dragEnabled: _isReorderEnabled,
               onReorder: _onReorder,
               itemBuilder: (context, index) {
                 final timer = _activeTimers[index];
                 return TimerCard(
-                  key: ValueKey(
-                    timer.id,
-                  ), // Key sangat penting untuk reordering
+                  key: ValueKey(timer.id),
                   timer: timer,
-                  // [BARU] Kirim status mode urut ke TimerCard
                   isReorderEnabled: _isReorderEnabled,
                   onStopAlarm: _stopAlarm,
                   onResume: () =>
@@ -158,7 +177,6 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  // ... (Semua fungsi dialog tidak berubah)
   void _showAddTimerSheet() {
     showModalBottomSheet(
       context: context,
@@ -241,8 +259,11 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   Future<void> _showEditTimerDialog(CountdownTimer timer) async {
-    final TextEditingController dialogNameController = TextEditingController(
+    final TextEditingController nameController = TextEditingController(
       text: timer.name,
+    );
+    final TextEditingController timeController = TextEditingController(
+      text: formatDuration(timer.initialDurationSeconds),
     );
 
     showDialog<void>(
@@ -250,42 +271,65 @@ class _CountdownPageState extends State<CountdownPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Ubah Timer'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Tombol untuk mengubah ikon
-              InkWell(
-                onTap: () {
-                  Navigator.of(context).pop(); // Tutup dialog edit nama
-                  _showEditIconDialog(timer); // Buka dialog edit ikon
-                },
-                borderRadius: BorderRadius.circular(50),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        timer.iconChar ?? '⏱️',
-                        style: const TextStyle(fontSize: 40),
-                      ),
-                      const SizedBox(width: 10),
-                      const Icon(Icons.edit_outlined, color: Colors.grey),
-                    ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _showEditIconDialog(timer);
+                  },
+                  borderRadius: BorderRadius.circular(50),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          timer.iconChar ?? '⏱️',
+                          style: const TextStyle(fontSize: 40),
+                        ),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.edit_outlined, color: Colors.grey),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              // Field untuk mengubah nama
-              TextField(
-                controller: dialogNameController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Nama timer',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama timer',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: timeController,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Durasi (JJ:MM:DD)',
+                    prefixIcon: const Icon(Icons.timer_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(6),
+                    TimeInputFormatter(),
+                  ],
+                ),
+              ],
+            ),
           ),
           actions: <Widget>[
             TextButton(
@@ -295,10 +339,19 @@ class _CountdownPageState extends State<CountdownPage> {
             FilledButton(
               child: const Text('Simpan'),
               onPressed: () {
-                if (dialogNameController.text.isNotEmpty) {
+                if (nameController.text.isNotEmpty &&
+                    nameController.text != timer.name) {
                   _service.invoke('updateTimerName', {
                     'id': timer.id,
-                    'name': dialogNameController.text,
+                    'name': nameController.text,
+                  });
+                }
+                final newDurationSeconds = parseDuration(timeController.text);
+                if (newDurationSeconds > 0 &&
+                    newDurationSeconds != timer.initialDurationSeconds) {
+                  _service.invoke('updateTimerDuration', {
+                    'id': timer.id,
+                    'duration': newDurationSeconds,
                   });
                 }
                 Navigator.of(context).pop();

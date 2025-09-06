@@ -1,12 +1,13 @@
 class CountdownTimer {
   final String id;
   String name;
-  final int initialDurationSeconds;
+  // [MODIFIKASI] Hapus keyword 'final' agar bisa diubah
+  int initialDurationSeconds;
   int remainingSeconds;
   bool isPaused;
   bool isDone;
   final String? alarmSound;
-  String? iconChar; // <-- [PERBAIKAN] Hapus keyword 'final' di sini
+  String? iconChar;
 
   CountdownTimer({
     required this.id,

@@ -117,35 +117,48 @@ class TimerCard extends StatelessWidget {
                 ],
               ),
             ),
-            ButtonBar(
-              alignment: MainAxisAlignment.end,
+            // [PERUBAHAN DI SINI] Ganti TextButton dengan IconButton
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 if (isDone)
                   FilledButton.icon(
-                    icon: const Icon(Icons.alarm_off),
+                    icon: const Icon(Icons.alarm_off, size: 20),
                     label: const Text("Matikan Alarm"),
                     onPressed: onStopAlarm,
                     style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       backgroundColor: Colors.orange.shade700,
                     ),
                   )
                 else if (isPaused)
-                  TextButton(
+                  IconButton(
+                    icon: const Icon(Icons.play_arrow),
                     onPressed: onResume,
-                    child: const Text("Lanjutkan"),
+                    tooltip: 'Lanjutkan',
+                    color: Theme.of(context).primaryColorDark,
                   )
                 else
-                  TextButton(onPressed: onPause, child: const Text("Jeda")),
+                  IconButton(
+                    icon: const Icon(Icons.pause),
+                    onPressed: onPause,
+                    tooltip: 'Jeda',
+                    color: Theme.of(context).primaryColorDark,
+                  ),
 
                 if (isPaused)
-                  TextButton(onPressed: onReset, child: const Text("Reset")),
-
-                TextButton(
-                  onPressed: onDelete,
-                  child: Text(
-                    "Hapus",
-                    style: TextStyle(color: Colors.red.shade700),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: onReset,
+                    tooltip: 'Reset',
+                    color: Colors.orange.shade800,
                   ),
+
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: onDelete,
+                  tooltip: 'Hapus',
+                  color: Colors.red.shade700,
                 ),
               ],
             ),

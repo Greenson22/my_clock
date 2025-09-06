@@ -7,7 +7,7 @@ import 'package:flutter_background_service_android/flutter_background_service_an
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-// --- KONSTANTA --- (Tidak ada perubahan)
+// --- KONSTANTA & MODEL --- (Tidak ada perubahan)
 const String notificationChannelId = 'my_foreground_service';
 const int persistentNotificationId = 888;
 const String defaultTimerName = "Timer Baru";
@@ -16,10 +16,9 @@ const int defaultTotalSeconds = 10;
 const Uuid uuid = Uuid();
 const String kTimersStorageKey = "activeTimersListV2";
 
-// --- DATA MODEL ---
 class CountdownTimer {
   final String id;
-  String name; // <-- [PERUBAHAN] Hapus keyword 'final'
+  String name;
   final int initialDurationSeconds;
   int remainingSeconds;
   bool isPaused;
@@ -27,14 +26,13 @@ class CountdownTimer {
 
   CountdownTimer({
     required this.id,
-    required this.name, // <-- Tidak perlu diubah di sini
+    required this.name,
     required this.initialDurationSeconds,
     required this.remainingSeconds,
     this.isPaused = false,
     this.isDone = false,
   });
 
-  // Metode toJson dan fromJson tidak perlu diubah
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
@@ -55,9 +53,6 @@ class CountdownTimer {
 }
 
 // --- FUNGSI HELPER & INISIALISASI --- (Tidak ada perubahan)
-// ... (semua fungsi parseDuration, formatDuration, initializeService, save/load TimersToDisk tetap sama)
-// --- (Saya singkat agar fokus pada perubahan) ---
-
 int parseDuration(String hms) {
   try {
     final parts = hms.split(':').map((e) => int.tryParse(e) ?? 0).toList();
@@ -147,7 +142,7 @@ void onStart(ServiceInstance service) async {
   List<CountdownTimer> activeTimers = [];
   Timer? globalTicker;
 
-  // ... (Fungsi onTick dan startGlobalTickerIfNeeded tidak ada perubahan) ...
+  // --- FUNGSI TICKER --- (Tidak ada perubahan)
   void onTick(Timer timer) async {
     bool stateChanged = false;
     String notificationBodySummary = "";
@@ -254,7 +249,7 @@ void onStart(ServiceInstance service) async {
   }
   service.on('stopService').listen((event) => service.stopSelf());
 
-  // ... (Listener addTimer, removeTimer, clearAll, pause, resume, reset tetap sama) ...
+  // [PERUBAHAN DI SINI]
   service.on('addTimer').listen((data) async {
     if (data == null) return;
     final int duration = data['duration'] as int? ?? defaultTotalSeconds;
@@ -264,15 +259,23 @@ void onStart(ServiceInstance service) async {
       name: data['name'] as String? ?? defaultTimerName,
       initialDurationSeconds: duration,
       remainingSeconds: duration,
-      isPaused: false,
+      isPaused: true, // <-- Mulai dalam keadaan jeda
       isDone: false,
     );
 
     activeTimers.add(newTimer);
     await saveTimersToDisk(activeTimers);
-    startGlobalTickerIfNeeded();
+
+    // Jangan jalankan ticker, karena timer baru dijeda
+    // startGlobalTickerIfNeeded();
+
+    // Kirim update manual agar UI segera refresh menampilkan timer baru yang dijeda
+    service.invoke('updateTimers', {
+      'timers': activeTimers.map((t) => t.toJson()).toList(),
+    });
   });
 
+  // --- Listener lainnya --- (Tidak ada perubahan)
   service.on('removeTimer').listen((data) async {
     if (data == null) return;
     final String idToRemove = data['id'] as String;
@@ -330,18 +333,14 @@ void onStart(ServiceInstance service) async {
     });
   });
 
-  // [BARU] Tambahkan listener untuk mengubah nama timer
   service.on('updateTimerName').listen((data) async {
     if (data == null) return;
     final String id = data['id'] as String;
     final String newName = data['name'] as String;
-
     try {
       final timerToUpdate = activeTimers.firstWhere((t) => t.id == id);
       timerToUpdate.name = newName;
       await saveTimersToDisk(activeTimers);
-
-      // Kirim update manual agar UI segera refresh jika ticker sedang tidak jalan
       service.invoke('updateTimers', {
         'timers': activeTimers.map((t) => t.toJson()).toList(),
       });

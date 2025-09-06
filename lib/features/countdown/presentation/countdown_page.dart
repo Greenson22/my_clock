@@ -1,28 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // <-- IMPOR DIPERLUKAN
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import '../service/countdown_service.dart'; // Impor service (termasuk Model)
+import '../service/countdown_service.dart';
 
-// [BARU] TextInputFormatter kustom untuk format JJ:MM:DD
+// (TimeInputFormatter class tetap sama, tidak ada perubahan)
 class TimeInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    // Jika user menghapus semuanya atau string kosong
     if (newValue.text.isEmpty) {
       return newValue.copyWith(text: '');
     }
-
-    // Hanya ambil angka dari input
     String newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-
-    // Batasi agar tidak lebih dari 6 digit (JJMMDD)
     if (newText.length > 6) {
       newText = newText.substring(0, 6);
     }
-
     String formattedText = '';
     for (int i = 0; i < newText.length; i++) {
       formattedText += newText[i];
@@ -30,10 +24,7 @@ class TimeInputFormatter extends TextInputFormatter {
         formattedText += ':';
       }
     }
-
-    // Cegah kursor berada di posisi yang salah (misalnya di belakang ':')
     int selectionIndex = formattedText.length;
-
     return TextEditingValue(
       text: formattedText,
       selection: TextSelection.collapsed(offset: selectionIndex),
@@ -48,33 +39,24 @@ class CountdownPage extends StatefulWidget {
 }
 
 class _CountdownPageState extends State<CountdownPage> {
-  // State UI adalah List dari Model Timer kita
   List<CountdownTimer> _activeTimers = [];
-
   final TextEditingController _nameController = TextEditingController(
     text: defaultTimerName,
   );
   final TextEditingController _timeController = TextEditingController(
     text: defaultTimeString,
   );
-
   final FlutterBackgroundService _service = FlutterBackgroundService();
 
   @override
   void initState() {
     super.initState();
-
-    // Pastikan service jalan
     _service.startService();
     _service.invoke('setAsForeground');
-
-    // Listener UTAMA: Mendengarkan list timer terbaru dari service
     _service.on('updateTimers').listen((data) {
       if (data == null || data['timers'] == null) return;
-
       final List timerDataList = data['timers'] as List;
       if (mounted) {
-        // Pastikan widget masih ada di tree
         setState(() {
           _activeTimers = timerDataList
               .map(
@@ -94,19 +76,17 @@ class _CountdownPageState extends State<CountdownPage> {
     super.dispose();
   }
 
-  // --- FUNGSI KONTROL UI (Hanya mengirim perintah ke Service) ---
-
+  // --- FUNGSI KONTROL UI ---
   void _addTimer() {
     final String name = _nameController.text.isNotEmpty
         ? _nameController.text
         : defaultTimerName;
     final int totalSeconds = parseDuration(_timeController.text);
-
     if (totalSeconds > 0) {
       _service.invoke('addTimer', {'duration': totalSeconds, 'name': name});
-      _nameController.text = defaultTimerName; // Reset input field
+      _nameController.text = defaultTimerName;
       _timeController.text = defaultTimeString;
-      FocusScope.of(context).unfocus(); // Tutup keyboard
+      FocusScope.of(context).unfocus();
     }
   }
 
@@ -116,12 +96,64 @@ class _CountdownPageState extends State<CountdownPage> {
   void _resumeTimer(String id) => _service.invoke('resumeTimer', {'id': id});
   void _resetTimer(String id) => _service.invoke('resetTimer', {'id': id});
 
-  // --- BUILD WIDGET UTAMA ---
+  // [BARU] Fungsi untuk mengirim perintah update nama ke service
+  void _updateTimerName(String id, String newName) {
+    if (newName.isNotEmpty) {
+      _service.invoke('updateTimerName', {'id': id, 'name': newName});
+    }
+  }
 
+  // [BARU] Fungsi untuk menampilkan dialog edit nama
+  Future<void> _showEditNameDialog(CountdownTimer timer) async {
+    final TextEditingController dialogNameController = TextEditingController(
+      text: timer.name,
+    );
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Ubah Nama Timer'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                TextField(
+                  controller: dialogNameController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama baru',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            FilledButton(
+              child: const Text('Simpan'),
+              onPressed: () {
+                _updateTimerName(timer.id, dialogNameController.text);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- BUILD WIDGET UTAMA --- (Tidak ada perubahan signifikan)
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100], // Latar belakang yang lebih lembut
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text("Multi Timer Modern"),
         backgroundColor: Colors.white,
@@ -137,10 +169,7 @@ class _CountdownPageState extends State<CountdownPage> {
       ),
       body: Column(
         children: [
-          // BAGIAN 1: FORM INPUT DENGAN TAMPILAN BARU
           _buildInputForm(),
-
-          // BAGIAN 2: LIST VIEW TIMER YANG AKTIF
           Expanded(
             child: _activeTimers.isEmpty
                 ? const Center(
@@ -168,7 +197,6 @@ class _CountdownPageState extends State<CountdownPage> {
                     itemCount: _activeTimers.length,
                     itemBuilder: (context, index) {
                       final timer = _activeTimers[index];
-                      // Build setiap card timer dengan layout modern
                       return _buildModernTimerCard(timer);
                     },
                   ),
@@ -179,9 +207,8 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   // --- WIDGET HELPER ---
-
-  /// Widget untuk Form Input di bagian atas dengan gaya modern
   Widget _buildInputForm() {
+    // ... (Tidak ada perubahan di sini)
     return Card(
       margin: const EdgeInsets.all(12),
       elevation: 2,
@@ -217,7 +244,6 @@ class _CountdownPageState extends State<CountdownPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              // [PERUBAHAN] Terapkan formatter di sini
               keyboardType: TextInputType.number,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
@@ -246,9 +272,7 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  /// Widget untuk membangun setiap Card Timer di ListView dengan gaya modern
   Widget _buildModernTimerCard(CountdownTimer timer) {
-    // Tentukan warna, ikon, dan progres berdasarkan state timer
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
 
@@ -286,16 +310,33 @@ class _CountdownPageState extends State<CountdownPage> {
           children: [
             ListTile(
               leading: Icon(stateIcon, color: stateColor, size: 40),
-              title: Text(
-                timer.name,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  decoration: isDone
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                ),
-                overflow: TextOverflow.ellipsis,
+              title: Row(
+                // <-- [PERUBAHAN] Bungkus Text dengan Row
+                children: [
+                  Expanded(
+                    child: Text(
+                      timer.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        decoration: isDone
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    // <-- [PERUBAHAN] Tambahkan tombol edit
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 20,
+                      color: Colors.grey.shade600,
+                    ),
+                    onPressed: () => _showEditNameDialog(timer),
+                    tooltip: 'Ubah Nama',
+                  ),
+                ],
               ),
               trailing: Text(
                 isDone ? "SELESAI" : formatDuration(timer.remainingSeconds),
@@ -317,8 +358,6 @@ class _CountdownPageState extends State<CountdownPage> {
                 ),
               ),
             ),
-
-            // Baris Tombol Kontrol
             ButtonBar(
               alignment: MainAxisAlignment.end,
               children: [
@@ -329,12 +368,10 @@ class _CountdownPageState extends State<CountdownPage> {
                         : _pauseTimer(timer.id),
                     child: Text(isPaused ? "Lanjutkan" : "Jeda"),
                   ),
-
                 TextButton(
                   onPressed: () => _resetTimer(timer.id),
                   child: const Text("Reset"),
                 ),
-
                 TextButton(
                   onPressed: () => _removeTimer(timer.id),
                   child: Text(

@@ -96,14 +96,12 @@ class _CountdownPageState extends State<CountdownPage> {
   void _resumeTimer(String id) => _service.invoke('resumeTimer', {'id': id});
   void _resetTimer(String id) => _service.invoke('resetTimer', {'id': id});
 
-  // [BARU] Fungsi untuk mengirim perintah update nama ke service
   void _updateTimerName(String id, String newName) {
     if (newName.isNotEmpty) {
       _service.invoke('updateTimerName', {'id': id, 'name': newName});
     }
   }
 
-  // [BARU] Fungsi untuk menampilkan dialog edit nama
   Future<void> _showEditNameDialog(CountdownTimer timer) async {
     final TextEditingController dialogNameController = TextEditingController(
       text: timer.name,
@@ -149,7 +147,44 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  // --- BUILD WIDGET UTAMA --- (Tidak ada perubahan signifikan)
+  // [BARU] Fungsi untuk menampilkan dialog konfirmasi hapus semua
+  Future<void> _showClearAllConfirmationDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User harus memilih salah satu tombol
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Konfirmasi'),
+          content: const SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Apakah Anda yakin ingin menghapus semua timer?'),
+                Text('Tindakan ini tidak dapat diurungkan.'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Hapus Semua'),
+              onPressed: () {
+                _clearAllTimers();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- BUILD WIDGET UTAMA ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -163,7 +198,10 @@ class _CountdownPageState extends State<CountdownPage> {
           IconButton(
             icon: const Icon(Icons.delete_sweep_outlined),
             tooltip: "Hapus Semua Timer",
-            onPressed: _activeTimers.isEmpty ? null : _clearAllTimers,
+            // [PERUBAHAN] Panggil fungsi dialog konfirmasi
+            onPressed: _activeTimers.isEmpty
+                ? null
+                : _showClearAllConfirmationDialog,
           ),
         ],
       ),
@@ -206,9 +244,8 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  // --- WIDGET HELPER ---
+  // --- WIDGET HELPER --- (Tidak ada perubahan di bawah ini)
   Widget _buildInputForm() {
-    // ... (Tidak ada perubahan di sini)
     return Card(
       margin: const EdgeInsets.all(12),
       elevation: 2,
@@ -311,7 +348,6 @@ class _CountdownPageState extends State<CountdownPage> {
             ListTile(
               leading: Icon(stateIcon, color: stateColor, size: 40),
               title: Row(
-                // <-- [PERUBAHAN] Bungkus Text dengan Row
                 children: [
                   Expanded(
                     child: Text(
@@ -327,7 +363,6 @@ class _CountdownPageState extends State<CountdownPage> {
                     ),
                   ),
                   IconButton(
-                    // <-- [PERUBAHAN] Tambahkan tombol edit
                     icon: Icon(
                       Icons.edit_outlined,
                       size: 20,

@@ -40,12 +40,6 @@ class CountdownPage extends StatefulWidget {
 
 class _CountdownPageState extends State<CountdownPage> {
   List<CountdownTimer> _activeTimers = [];
-  final TextEditingController _nameController = TextEditingController(
-    text: defaultTimerName,
-  );
-  final TextEditingController _timeController = TextEditingController(
-    text: defaultTimeString,
-  );
   final FlutterBackgroundService _service = FlutterBackgroundService();
 
   @override
@@ -69,24 +63,12 @@ class _CountdownPageState extends State<CountdownPage> {
     });
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _timeController.dispose();
-    super.dispose();
-  }
-
   // --- FUNGSI KONTROL UI ---
-  void _addTimer() {
-    final String name = _nameController.text.isNotEmpty
-        ? _nameController.text
-        : defaultTimerName;
-    final int totalSeconds = parseDuration(_timeController.text);
+  // [PERUBAHAN] Fungsi _addTimer sekarang menerima parameter
+  void _addTimer(String name, String timeString) {
+    final int totalSeconds = parseDuration(timeString);
     if (totalSeconds > 0) {
       _service.invoke('addTimer', {'duration': totalSeconds, 'name': name});
-      _nameController.text = defaultTimerName;
-      _timeController.text = defaultTimeString;
-      FocusScope.of(context).unfocus();
     }
   }
 
@@ -113,26 +95,18 @@ class _CountdownPageState extends State<CountdownPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Ubah Nama Timer'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                TextField(
-                  controller: dialogNameController,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Nama baru',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
+          content: TextField(
+            controller: dialogNameController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Nama baru',
+              border: OutlineInputBorder(),
             ),
           ),
           actions: <Widget>[
             TextButton(
               child: const Text('Batal'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             FilledButton(
               child: const Text('Simpan'),
@@ -147,28 +121,18 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  // [BARU] Fungsi untuk menampilkan dialog konfirmasi hapus semua
   Future<void> _showClearAllConfirmationDialog() async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, // User harus memilih salah satu tombol
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Konfirmasi'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Apakah Anda yakin ingin menghapus semua timer?'),
-                Text('Tindakan ini tidak dapat diurungkan.'),
-              ],
-            ),
-          ),
+          content: const Text('Apakah Anda yakin ingin menghapus semua timer?'),
           actions: <Widget>[
             TextButton(
               child: const Text('Batal'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -184,13 +148,38 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
+  // [BARU] Fungsi untuk menampilkan panel input dari bawah (bottom sheet)
+  void _showAddTimerSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Penting agar sheet tidak tertutup keyboard
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          // Padding agar konten tidak tertutup keyboard
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: _AddTimerSheet(
+            onAddTimer: (name, timeString) {
+              _addTimer(name, timeString);
+              Navigator.pop(context); // Tutup bottom sheet setelah menambah
+            },
+          ),
+        );
+      },
+    );
+  }
+
   // --- BUILD WIDGET UTAMA ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text("Multi Timer Modern"),
+        title: const Text("Multi Timer"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 1,
@@ -198,118 +187,57 @@ class _CountdownPageState extends State<CountdownPage> {
           IconButton(
             icon: const Icon(Icons.delete_sweep_outlined),
             tooltip: "Hapus Semua Timer",
-            // [PERUBAHAN] Panggil fungsi dialog konfirmasi
             onPressed: _activeTimers.isEmpty
                 ? null
                 : _showClearAllConfirmationDialog,
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildInputForm(),
-          Expanded(
-            child: _activeTimers.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.timer_off_outlined,
-                          size: 60,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          "Belum ada timer",
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                    itemCount: _activeTimers.length,
-                    itemBuilder: (context, index) {
-                      final timer = _activeTimers[index];
-                      return _buildModernTimerCard(timer);
-                    },
-                  ),
-          ),
-        ],
+      // [BARU] Tambahkan FloatingActionButton
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddTimerSheet,
+        label: const Text('Timer Baru'),
+        icon: const Icon(Icons.add_alarm),
       ),
+      body: _activeTimers.isEmpty
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.hourglass_empty_rounded,
+                    size: 60,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    "Belum ada timer",
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.fromLTRB(
+                8,
+                8,
+                8,
+                80,
+              ), // Padding bawah agar tidak tertutup FAB
+              itemCount: _activeTimers.length,
+              itemBuilder: (context, index) {
+                final timer = _activeTimers[index];
+                return _buildModernTimerCard(timer);
+              },
+            ),
     );
   }
 
-  // --- WIDGET HELPER --- (Tidak ada perubahan di bawah ini)
-  Widget _buildInputForm() {
-    return Card(
-      margin: const EdgeInsets.all(12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(
-                labelText: 'Nama Timer',
-                prefixIcon: const Icon(Icons.label_outline),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _timeController,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'monospace',
-              ),
-              decoration: InputDecoration(
-                labelText: 'Durasi (JJ:MM:DD)',
-                prefixIcon: const Icon(Icons.timer_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
-                TimeInputFormatter(),
-              ],
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              icon: const Icon(Icons.add_alarm),
-              label: const Text(
-                "TAMBAH TIMER",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              onPressed: _addTimer,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // --- WIDGET HELPER ---
+  // [DIHAPUS] Widget _buildInputForm() sudah tidak diperlukan lagi
 
   Widget _buildModernTimerCard(CountdownTimer timer) {
+    // ... (Tidak ada perubahan di sini)
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
 
@@ -418,6 +346,107 @@ class _CountdownPageState extends State<CountdownPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// [BARU] Widget terpisah untuk konten Bottom Sheet
+class _AddTimerSheet extends StatefulWidget {
+  final Function(String name, String timeString) onAddTimer;
+
+  const _AddTimerSheet({required this.onAddTimer});
+
+  @override
+  State<_AddTimerSheet> createState() => _AddTimerSheetState();
+}
+
+class _AddTimerSheetState extends State<_AddTimerSheet> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _timeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: defaultTimerName);
+    _timeController = TextEditingController(text: defaultTimeString);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _timeController.dispose();
+    super.dispose();
+  }
+
+  void _handleAddTimer() {
+    final String name = _nameController.text.isNotEmpty
+        ? _nameController.text
+        : defaultTimerName;
+    widget.onAddTimer(name, _timeController.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Tambah Timer Baru',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 24),
+          TextField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              labelText: 'Nama Timer',
+              prefixIcon: const Icon(Icons.label_outline),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _timeController,
+            textAlign: TextAlign.center,
+            autofocus: true,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'monospace',
+            ),
+            decoration: InputDecoration(
+              labelText: 'Durasi (JJ:MM:DD)',
+              prefixIcon: const Icon(Icons.timer_outlined),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(6),
+              TimeInputFormatter(),
+            ],
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            icon: const Icon(Icons.add_alarm),
+            label: const Text("SIMPAN TIMER"),
+            onPressed: _handleAddTimer,
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

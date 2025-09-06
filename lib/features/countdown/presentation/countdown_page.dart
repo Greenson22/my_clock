@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-// Impor file service kita untuk mengakses helper dan konstanta
+// Impor file service kita
 import '../service/countdown_service.dart';
 
 class CountdownPage extends StatefulWidget {
@@ -11,8 +11,8 @@ class CountdownPage extends StatefulWidget {
 }
 
 class _CountdownPageState extends State<CountdownPage> {
-  String _textToDisplay = formatDuration(defaultTotalSeconds);
-  bool _isRunning = false;
+  // State UI sekarang adalah LIST of Timers, bukan lagi satu string
+  List<CountdownTimer> _runningTimers = [];
 
   final TextEditingController _nameController = TextEditingController(
     text: defaultTimerName,
@@ -29,19 +29,20 @@ class _CountdownPageState extends State<CountdownPage> {
     service.startService();
     service.invoke('setAsForeground');
 
-    service.on('update').listen((data) {
-      if (data != null && data.containsKey('count')) {
-        int countInSeconds = data['count'] as int;
-        setState(() {
-          _textToDisplay = formatDuration(countInSeconds); // Gunakan helper
-          _isRunning = countInSeconds > 0;
-        });
+    // Listener UTAMA. Sekarang mendengarkan 'updateTimers' (bukan 'update')
+    service.on('updateTimers').listen((data) {
+      if (data == null || data['timers'] == null) return;
 
-        if (countInSeconds == 0 && !_isRunning) {
-          _nameController.text = defaultTimerName;
-          _timeController.text = defaultTimeString;
-        }
-      }
+      final List timerDataList = data['timers'] as List;
+      setState(() {
+        // Konversi data JSON (Map) dari service menjadi List<CountdownTimer>
+        _runningTimers = timerDataList
+            .map(
+              (timerJson) =>
+                  CountdownTimer.fromJson(timerJson as Map<String, dynamic>),
+            )
+            .toList();
+      });
     });
   }
 
@@ -52,35 +53,63 @@ class _CountdownPageState extends State<CountdownPage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  void _addTimer() {
     final service = FlutterBackgroundService();
 
+    final String name = _nameController.text.isNotEmpty
+        ? _nameController.text
+        : defaultTimerName;
+    final String timeString = _timeController.text;
+
+    final int totalSeconds = parseDuration(timeString); // Gunakan helper
+
+    if (totalSeconds > 0) {
+      // Kirim perintah BARU: 'addTimer' dengan data
+      service.invoke('addTimer', {'duration': totalSeconds, 'name': name});
+
+      // Reset field input setelah ditambahkan
+      _nameController.text = defaultTimerName;
+      _timeController.text = defaultTimeString;
+      // Tutup keyboard
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  void _removeTimer(String id) {
+    final service = FlutterBackgroundService();
+    // Kirim perintah BARU: 'removeTimer' dengan ID
+    service.invoke('removeTimer', {'id': id});
+  }
+
+  void _clearAllTimers() {
+    final service = FlutterBackgroundService();
+    // Kirim perintah BARU: 'clearAll'
+    service.invoke('clearAll');
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Timer Service Kustom")),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Center(
+      appBar: AppBar(
+        title: const Text("Multi Timer Service"),
+        actions: [
+          // Tombol Hapus Semua
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            tooltip: "Hapus Semua Timer",
+            onPressed: _runningTimers.isEmpty ? null : _clearAllTimers,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // BAGIAN 1: FORM INPUT
+          Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                const SizedBox(height: 20),
-                Text(
-                  _textToDisplay,
-                  style: const TextStyle(
-                    fontSize: 64.0,
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
-                ),
-                const SizedBox(height: 40),
+              children: [
                 TextField(
                   controller: _nameController,
-                  textAlign: TextAlign.left,
-                  style: const TextStyle(fontSize: 18),
-                  enabled: !_isRunning,
                   decoration: InputDecoration(
                     labelText: 'Nama Timer',
                     border: OutlineInputBorder(
@@ -89,81 +118,92 @@ class _CountdownPageState extends State<CountdownPage> {
                     prefixIcon: const Icon(Icons.label),
                   ),
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _timeController,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  enabled: !_isRunning,
-                  decoration: InputDecoration(
-                    labelText: 'Set Durasi (JJ:MM:DD)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.timer),
-                  ),
-                  keyboardType: TextInputType.datetime,
-                ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 12),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 40,
-                          vertical: 15,
+                    Expanded(
+                      child: TextField(
+                        controller: _timeController,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
                         ),
-                        textStyle: const TextStyle(fontSize: 18),
+                        decoration: InputDecoration(
+                          labelText: 'Set Durasi (JJ:MM:DD)',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.timer),
+                        ),
+                        keyboardType: TextInputType.datetime,
                       ),
-                      onPressed: _isRunning
-                          ? null
-                          : () {
-                              final String name =
-                                  _nameController.text.isNotEmpty
-                                  ? _nameController.text
-                                  : defaultTimerName;
-                              final String timeString = _timeController.text;
-
-                              final int totalSeconds = parseDuration(
-                                timeString,
-                              ); // Gunakan helper
-
-                              if (totalSeconds > 0) {
-                                service.invoke('start', {
-                                  'duration': totalSeconds,
-                                  'name': name,
-                                });
-                              }
-                            },
-                      child: const Text('Mulai'),
                     ),
-                    const SizedBox(width: 20),
+                    const SizedBox(width: 10),
+                    // Tombol 'Add' (Menggantikan 'Mulai')
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 40,
-                          vertical: 15,
+                        padding: const EdgeInsets.symmetric(vertical: 28),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        textStyle: const TextStyle(fontSize: 18),
                       ),
-                      onPressed: () {
-                        service.invoke('reset');
-                        _nameController.text = defaultTimerName;
-                        _timeController.text = defaultTimeString;
-                      },
-                      child: const Text('Reset'),
+                      onPressed: _addTimer,
+                      child: const Icon(Icons.add),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-        ),
+          const Divider(),
+
+          // BAGIAN 2: LIST VIEW TIMER YANG AKTIF
+          Expanded(
+            child: _runningTimers.isEmpty
+                ? const Center(
+                    child: Text(
+                      "Tidak ada timer aktif.\nTambahkan timer di atas.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _runningTimers.length,
+                    itemBuilder: (context, index) {
+                      final timer = _runningTimers[index];
+                      return ListTile(
+                        title: Text(
+                          timer.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                        // Tampilan sisa waktu
+                        subtitle: Text(
+                          formatDuration(timer.remainingSeconds),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontFamily: 'monospace',
+                            color: Colors.indigo,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.cancel_outlined,
+                            color: Colors.redAccent,
+                          ),
+                          tooltip: "Hapus Timer Ini",
+                          onPressed: () =>
+                              _removeTimer(timer.id), // Hapus timer spesifik
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

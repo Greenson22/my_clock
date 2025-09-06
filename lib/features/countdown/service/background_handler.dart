@@ -258,4 +258,17 @@ void onStart(ServiceInstance service) async {
       // Timer tidak ditemukan
     }
   });
+
+  service.on('reorderTimers').listen((data) async {
+    if (data == null || data['timers'] == null) return;
+    final List timerDataList = data['timers'] as List;
+    activeTimers = timerDataList
+        .map(
+          (timerJson) =>
+              CountdownTimer.fromJson(timerJson as Map<String, dynamic>),
+        )
+        .toList();
+    await saveTimersToDisk(activeTimers);
+    // Tidak perlu invoke 'updateTimers' karena UI sudah diupdate secara lokal
+  });
 }

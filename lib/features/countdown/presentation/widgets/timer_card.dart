@@ -11,7 +11,7 @@ class TimerCard extends StatelessWidget {
   final VoidCallback onReset;
   final VoidCallback onDelete;
   final VoidCallback onEditName;
-  final VoidCallback onEditIcon; // <-- [BARU] Callback untuk edit ikon
+  final VoidCallback onEditIcon;
 
   const TimerCard({
     super.key,
@@ -22,12 +22,11 @@ class TimerCard extends StatelessWidget {
     required this.onReset,
     required this.onDelete,
     required this.onEditName,
-    required this.onEditIcon, // <-- [BARU] Tambahkan di konstruktor
+    required this.onEditIcon,
   });
 
   @override
   Widget build(BuildContext context) {
-    // ... (logika warna, progress, dll tidak berubah)
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
 
@@ -60,28 +59,39 @@ class TimerCard extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 8, 4),
+        padding: const EdgeInsets.fromLTRB(4, 12, 8, 4), // Kurangi padding kiri
         child: Column(
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: InkWell(
-                // <-- [PERUBAHAN] Bungkus dengan InkWell
-                onTap: onEditIcon, // Panggil callback saat diklik
-                borderRadius: BorderRadius.circular(24),
-                child: Tooltip(
-                  message: 'Ubah Simbol',
-                  child: SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: Center(
-                      child: Text(
-                        timer.iconChar ?? '⏱️',
-                        style: const TextStyle(fontSize: 36),
+              // [MODIFIKASI] Tambahkan handle untuk drag
+              leading: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle untuk drag
+                  ReorderableDragStartListener(
+                    index: 0, // Indeks akan dikelola oleh ReorderableListView
+                    child: const Icon(Icons.drag_handle, color: Colors.grey),
+                  ),
+                  // Ikon timer
+                  InkWell(
+                    onTap: onEditIcon,
+                    borderRadius: BorderRadius.circular(24),
+                    child: Tooltip(
+                      message: 'Ubah Simbol',
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Center(
+                          child: Text(
+                            timer.iconChar ?? '⏱️',
+                            style: const TextStyle(fontSize: 36),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
               title: Row(
                 children: [
@@ -161,7 +171,6 @@ class TimerCard extends StatelessWidget {
                     tooltip: 'Jeda',
                     color: Theme.of(context).primaryColorDark,
                   ),
-
                 if (isPaused)
                   IconButton(
                     icon: const Icon(Icons.refresh),
@@ -169,7 +178,6 @@ class TimerCard extends StatelessWidget {
                     tooltip: 'Reset',
                     color: Colors.orange.shade800,
                   ),
-
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   onPressed: onDelete,

@@ -5,7 +5,7 @@ import '../service/countdown_model.dart';
 import '../service/countdown_utils.dart';
 import 'widgets/add_timer_sheet.dart';
 import 'widgets/timer_card.dart';
-import 'widgets/emoji_picker_dialog.dart'; // Pastikan ini diimpor
+import 'widgets/emoji_picker_dialog.dart';
 
 class CountdownPage extends StatefulWidget {
   const CountdownPage({super.key});
@@ -19,7 +19,6 @@ class _CountdownPageState extends State<CountdownPage> {
 
   @override
   void initState() {
-    // ... (initState tetap sama)
     super.initState();
     _service.startService();
     _service.invoke('setAsForeground');
@@ -62,22 +61,36 @@ class _CountdownPageState extends State<CountdownPage> {
   void _stopAlarm() => _service.invoke('stopAlarm');
   void _clearAllTimers() => _service.invoke('clearAll');
 
+  // [BARU] Fungsi untuk menangani pengurutan ulang
+  void _onReorder(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final CountdownTimer item = _activeTimers.removeAt(oldIndex);
+    _activeTimers.insert(newIndex, item);
+
+    // Kirim state baru ke background service untuk disimpan
+    _service.invoke('reorderTimers', {
+      'timers': _activeTimers.map((t) => t.toJson()).toList(),
+    });
+
+    // Perbarui UI secara lokal
+    setState(() {});
+  }
+
   // --- FUNGSI DIALOG ---
 
-  // [MODIFIKASI] Fungsi dialog untuk mengubah ikon
   Future<void> _showEditIconDialog(CountdownTimer timer) async {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return EmojiPickerDialog(
-          // [BARU] Kirim ikon yang ada saat ini sebagai nilai awal
           initialEmoji: timer.iconChar,
           onEmojiSelected: (emoji) {
             _service.invoke('updateTimerIcon', {
               'id': timer.id,
               'iconChar': emoji,
             });
-            // Tidak perlu pop navigator di sini karena dialog sudah melakukannya
           },
         );
       },
@@ -85,7 +98,6 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   Future<void> _showEditNameDialog(CountdownTimer timer) {
-    // ... (fungsi ini tidak berubah)
     final TextEditingController dialogNameController = TextEditingController(
       text: timer.name,
     );
@@ -126,7 +138,6 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   Future<void> _showClearAllConfirmationDialog() {
-    // ... (fungsi ini tidak berubah)
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -153,7 +164,6 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   Future<void> _showDeleteConfirmationDialog(CountdownTimer timer) {
-    // ... (fungsi ini tidak berubah)
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -182,7 +192,6 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   void _showAddTimerSheet() {
-    // ... (fungsi ini tidak berubah)
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -244,12 +253,15 @@ class _CountdownPageState extends State<CountdownPage> {
                 ],
               ),
             )
-          : ListView.builder(
+          // [MODIFIKASI] Gunakan ReorderableListView.builder
+          : ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
               itemCount: _activeTimers.length,
               itemBuilder: (context, index) {
                 final timer = _activeTimers[index];
                 return TimerCard(
+                  // [BARU] Key diperlukan untuk ReorderableListView
+                  key: ValueKey(timer.id),
                   timer: timer,
                   onStopAlarm: _stopAlarm,
                   onResume: () =>
@@ -260,11 +272,11 @@ class _CountdownPageState extends State<CountdownPage> {
                       _service.invoke('resetTimer', {'id': timer.id}),
                   onDelete: () => _showDeleteConfirmationDialog(timer),
                   onEditName: () => _showEditNameDialog(timer),
-                  onEditIcon: () => _showEditIconDialog(
-                    timer,
-                  ), // <-- Teruskan fungsi edit ikon
+                  onEditIcon: () => _showEditIconDialog(timer),
                 );
               },
+              // [BARU] Callback saat item diurutkan ulang
+              onReorder: _onReorder,
             ),
     );
   }

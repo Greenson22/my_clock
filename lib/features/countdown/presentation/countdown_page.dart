@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:file_picker/file_picker.dart';
-import '../service/countdown_service.dart';
 
-// (TimeInputFormatter class tetap sama)
+// [PERUBAHAN] Impor dari file-file yang sudah dipecah
+import '../service/countdown_model.dart';
+import '../service/countdown_utils.dart';
+
+// (TimeInputFormatter class tetap sama, tidak ada perubahan)
 class TimeInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -65,11 +68,11 @@ class _CountdownPageState extends State<CountdownPage> {
       }
     });
 
-    // [PERBAIKAN] Minta daftar timer saat UI siap
     _service.invoke('requestInitialTimers');
   }
 
-  // (Sisa file tidak ada perubahan)
+  // (Sisa file tidak ada perubahan logika, karena semua fungsi dan kelas
+  // sekarang diimpor dari lokasi yang benar)
   void _addTimer(String name, String timeString, String? alarmSoundPath) {
     final int totalSeconds = parseDuration(timeString);
     if (totalSeconds > 0) {

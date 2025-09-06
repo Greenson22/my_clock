@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-// Hapus impor CountdownPage
-// import 'features/countdown/presentation/countdown_page.dart';
-// Impor DashboardPage yang baru
+import 'package:provider/provider.dart';
 import 'features/dashboard/presentation/dashboard_page.dart';
+import 'features/settings/application/theme_provider.dart';
 
 class AppWidget extends StatelessWidget {
   const AppWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return MaterialApp(
       title: 'Countdown App',
       theme: ThemeData(
@@ -27,8 +28,7 @@ class AppWidget extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'monospace',
       ),
-      themeMode: ThemeMode.system, // Mengikuti tema sistem
-      // Ubah home dari CountdownPage ke DashboardPage
+      themeMode: themeProvider.themeMode, // Menggunakan themeMode dari provider
       home: const DashboardPage(),
       debugShowCheckedModeBanner: false,
     );

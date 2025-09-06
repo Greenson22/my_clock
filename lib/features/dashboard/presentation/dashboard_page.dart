@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../alarm/presentation/alarm_page.dart';
 import '../../countdown/presentation/countdown_page.dart';
+import '../../settings/presentation/settings_page.dart'; // Impor halaman pengaturan
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -12,7 +13,12 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [const CountdownPage(), const AlarmPage()];
+  // Tambahkan SettingsPage ke dalam daftar halaman
+  final List<Widget> _pages = [
+    const CountdownPage(),
+    const AlarmPage(),
+    const SettingsPage(),
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -22,9 +28,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Karena CountdownPage sekarang memiliki AppBar sendiri,
-    // kita tidak memerlukan AppBar di DashboardPage.
-    // Cukup gunakan body untuk menampilkan halaman yang dipilih.
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
@@ -38,6 +41,12 @@ class _DashboardPageState extends State<DashboardPage> {
             icon: Icon(Icons.alarm_outlined),
             activeIcon: Icon(Icons.alarm),
             label: 'Alarm',
+          ),
+          // Tambahkan item navigasi untuk Pengaturan
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Pengaturan',
           ),
         ],
         currentIndex: _selectedIndex,

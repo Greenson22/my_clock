@@ -52,6 +52,7 @@ dependencies:
   just_audio: ^0.9.36   # Untuk memainkan audio dari file
   percent_indicator: ^4.2.3
   reorderable_grid_view: ^2.2.6
+  provider: ^6.0.5
 
 
 dev_dependencies:

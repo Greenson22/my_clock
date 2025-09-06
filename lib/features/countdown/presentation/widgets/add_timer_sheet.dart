@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../service/countdown_utils.dart';
 import '../formatters/time_input_formatter.dart';
-import 'emoji_picker_dialog.dart'; // Pastikan file ini diimpor
+import 'emoji_picker_dialog.dart';
 
 class AddTimerSheet extends StatefulWidget {
   final Function(
@@ -25,7 +25,6 @@ class AddTimerSheet extends StatefulWidget {
 class _AddTimerSheetState extends State<AddTimerSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _timeController;
-  // [BARU] State untuk menyimpan karakter ikon yang dipilih
   String _selectedIconChar = '⏱️';
   File? _selectedAlarmFile;
 
@@ -54,14 +53,12 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     }
   }
 
-  // [MODIFIKASI] Fungsi untuk membuka dialog pemilih simbol
   void _showIconPicker() {
     showDialog(
       context: context,
       builder: (_) => EmojiPickerDialog(
-        initialEmoji: _selectedIconChar, // Kirim ikon saat ini ke dialog
+        initialEmoji: _selectedIconChar,
         onEmojiSelected: (emoji) {
-          // Update state saat emoji dipilih dari dialog
           setState(() {
             _selectedIconChar = emoji;
           });
@@ -78,7 +75,7 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
       name,
       _timeController.text,
       _selectedAlarmFile?.path,
-      _selectedIconChar, // Gunakan state ikon yang sudah dipilih
+      _selectedIconChar,
     );
   }
 
@@ -103,7 +100,6 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // [BARU] Tombol untuk membuka dialog pemilih ikon
               SizedBox(
                 width: 72,
                 height: 60,
@@ -161,9 +157,8 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             icon: const Icon(Icons.music_note_outlined),
-            label: Expanded(
-              child: Text(alarmSoundText, overflow: TextOverflow.ellipsis),
-            ),
+            // [FIX] Hapus widget Expanded di sini
+            label: Text(alarmSoundText, overflow: TextOverflow.ellipsis),
             onPressed: _pickAlarmSound,
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),

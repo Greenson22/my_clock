@@ -1,46 +1,59 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
-import 'package:uuid/uuid.dart'; // Impor paket UUID
+import 'package:shared_preferences/shared_preferences.dart'; // <--- IMPOR BARU
+import 'package:uuid/uuid.dart';
 
-// --- KONSTANTA (Sama seperti sebelumnya) ---
+// --- KONSTANTA ---
 const String notificationChannelId = 'my_foreground_service';
-const int persistentNotificationId = 888; // Notifikasi service yg persisten
+const int persistentNotificationId = 888;
 const String defaultTimerName = "Timer Baru";
 const String defaultTimeString = "00:00:10";
 const int defaultTotalSeconds = 10;
 const Uuid uuid = Uuid();
 
+const String kTimersStorageKey = "activeTimersListV2";
+
 // --- DATA MODEL ---
-// Kita butuh class untuk merepresentasikan setiap timer
+// (Tidak ada perubahan pada class CountdownTimer, parseDuration, formatDuration)
 class CountdownTimer {
   final String id;
   final String name;
+  final int initialDurationSeconds;
   int remainingSeconds;
+  bool isPaused;
+  bool isDone;
 
   CountdownTimer({
     required this.id,
     required this.name,
+    required this.initialDurationSeconds,
     required this.remainingSeconds,
+    this.isPaused = false,
+    this.isDone = false,
   });
 
-  // Metode untuk mengirim data antar isolate (wajib ada)
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
+    'initialDurationSeconds': initialDurationSeconds,
     'remainingSeconds': remainingSeconds,
+    'isPaused': isPaused,
+    'isDone': isDone,
   };
 
   factory CountdownTimer.fromJson(Map<String, dynamic> json) => CountdownTimer(
-    id: json['id'],
-    name: json['name'],
-    remainingSeconds: json['remainingSeconds'],
+    id: json['id'] as String,
+    name: json['name'] as String,
+    initialDurationSeconds: json['initialDurationSeconds'] as int,
+    remainingSeconds: json['remainingSeconds'] as int,
+    isPaused: json['isPaused'] as bool? ?? false,
+    isDone: json['isDone'] as bool? ?? false,
   );
 }
-
-// --- FUNGSI HELPER (Sama seperti sebelumnya) ---
 
 int parseDuration(String hms) {
   try {
@@ -68,8 +81,8 @@ String formatDuration(int totalSeconds) {
   return "$hours:$minutes:$seconds";
 }
 
-// --- INISIALISASI SERVICE (Sama seperti sebelumnya) ---
-
+// --- INISIALISASI SERVICE ---
+// (Tidak ada perubahan)
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -86,93 +99,114 @@ Future<void> initializeService() async {
         AndroidFlutterLocalNotificationsPlugin
       >()
       ?.createNotificationChannel(channel);
+
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
-      autoStart: false,
+      autoStart: true,
       isForegroundMode: true,
       notificationChannelId: notificationChannelId,
       initialNotificationTitle: 'Layanan Timer Aktif',
-      initialNotificationContent: 'Tidak ada timer berjalan.',
+      initialNotificationContent: 'Memuat timer...',
       foregroundServiceNotificationId: persistentNotificationId,
     ),
-    iosConfiguration: IosConfiguration(),
+    iosConfiguration: IosConfiguration(autoStart: true),
   );
 }
 
-// ------------------------------------------------------------------
-// --- LOGIKA UTAMA BACKGROUND ISOLATE (ROMBAKAN TOTAL) ---
-// ------------------------------------------------------------------
+// --- LOGIKA UTAMA BACKGROUND ---
 
+/// [PERBAIKAN TOTAL] Fungsi Helper untuk Menyimpan State ke Disk menggunakan SharedPreferences
+Future<void> saveTimersToDisk(List<CountdownTimer> timers) async {
+  final prefs = await SharedPreferences.getInstance();
+  final List<Map<String, dynamic>> timerJsonList = timers
+      .map((t) => t.toJson())
+      .toList();
+  final String jsonString = jsonEncode(timerJsonList);
+  await prefs.setString(kTimersStorageKey, jsonString);
+}
+
+/// [PERBAIKAN TOTAL] Fungsi Helper untuk Memuat State dari Disk menggunakan SharedPreferences
+Future<List<CountdownTimer>> loadTimersFromDisk() async {
+  final prefs = await SharedPreferences.getInstance();
+  final data = prefs.getString(kTimersStorageKey);
+  if (data == null) return [];
+
+  try {
+    final List<dynamic> decodedList = jsonDecode(data) as List;
+    return decodedList
+        .map((item) => CountdownTimer.fromJson(item as Map<String, dynamic>))
+        .toList();
+  } catch (e) {
+    return [];
+  }
+}
+
+// ENTRY POINT UTAMA SERVICE
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
 
-  // Variabel state di dalam background service
-  List<CountdownTimer> activeTimers = []; // Ini adalah List of Timers kita
-  Timer? globalTicker; // Ini adalah SATU-SATUNYA Ticker
+  List<CountdownTimer> activeTimers = [];
+  Timer? globalTicker;
 
-  // Fungsi yang dipanggil setiap 1 detik oleh Ticker
-  void onTick(Timer timer) {
-    if (activeTimers.isEmpty) {
-      // Jika tidak ada timer lagi, matikan ticker global untuk hemat baterai
-      globalTicker?.cancel();
-      globalTicker = null;
-      return;
-    }
+  // Di dalam onStart, semua pemanggilan ke save/load SEKARANG TIDAK PERLU parameter 'service' lagi
 
-    String notificationBodySummary = ""; // Untuk notifikasi persisten
+  void onTick(Timer timer) async {
+    bool stateChanged = false;
+    String notificationBodySummary = "";
 
-    // Loop mundur agar kita bisa menghapus item dari list dengan aman
-    for (int i = activeTimers.length - 1; i >= 0; i--) {
-      final timer = activeTimers[i];
-      timer.remainingSeconds--;
+    for (final timer in activeTimers) {
+      if (!timer.isPaused && !timer.isDone) {
+        timer.remainingSeconds--;
+        stateChanged = true;
 
-      // Tambahkan ke ringkasan notifikasi
-      notificationBodySummary +=
-          "${timer.name}: ${formatDuration(timer.remainingSeconds)}\n";
+        if (timer.remainingSeconds <= 0) {
+          timer.remainingSeconds = 0;
+          timer.isDone = true;
+          timer.isPaused = true;
 
-      if (timer.remainingSeconds <= 0) {
-        // TIMER SELESAI!
-
-        // 1. Tampilkan notifikasi BARU (non-persisten) bahwa timer ini selesai
-        // Kita gunakan hashcode ID sebagai ID Notifikasi unik
-        flutterLocalNotificationsPlugin.show(
-          timer.id.hashCode,
-          'Timer Selesai!',
-          'Timer Anda "${timer.name}" telah berakhir.',
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              notificationChannelId,
-              'MY FOREGROUND SERVICE',
-              importance: Importance.high, // Penting agar berbunyi
-              priority: Priority.high,
-              ongoing: false,
+          flutterLocalNotificationsPlugin.show(
+            timer.id.hashCode,
+            'Timer Selesai!',
+            'Timer Anda "${timer.name}" telah berakhir.',
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                notificationChannelId,
+                'MY FOREGROUND SERVICE',
+                importance: Importance.high,
+                priority: Priority.high,
+                ongoing: false,
+              ),
             ),
-          ),
-        );
-
-        // 2. Hapus dari list aktif
-        activeTimers.removeAt(i);
+          );
+        }
       }
+      final status = timer.isDone
+          ? "[Selesai]"
+          : (timer.isPaused ? "[Paused]" : "");
+      notificationBodySummary +=
+          "${timer.name}: ${formatDuration(timer.remainingSeconds)} $status\n";
     }
 
-    // UPDATE UI: Kirim seluruh list timer yang sudah diupdate ke UI
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
 
-    // UPDATE NOTIFIKASI PERSISTEN: Tampilkan ringkasan semua timer yg berjalan
-    String title = activeTimers.isEmpty
-        ? "Layanan Timer Aktif"
-        : "${activeTimers.length} Timer Berjalan";
+    int runningCount = activeTimers
+        .where((t) => !t.isPaused && !t.isDone)
+        .length;
+    String title = runningCount > 0
+        ? "$runningCount Timer Berjalan"
+        : "Semua Timer Dijeda";
+    if (activeTimers.isEmpty) title = "Layanan Timer Aktif";
 
     String content = activeTimers.isEmpty
         ? "Tidak ada timer berjalan."
-        : notificationBodySummary.trim(); // Ringkasan timer
+        : notificationBodySummary.trim();
 
     flutterLocalNotificationsPlugin.show(
-      persistentNotificationId, // ID Notif Persisten (selalu 888)
+      persistentNotificationId,
       title,
       content,
       NotificationDetails(
@@ -182,19 +216,35 @@ void onStart(ServiceInstance service) async {
           icon: 'ic_bg_service_small',
           ongoing: true,
           autoCancel: false,
-          styleInformation: BigTextStyleInformation(
-            content,
-          ), // Agar bisa tampil banyak baris
+          styleInformation: BigTextStyleInformation(content),
         ),
       ),
     );
+
+    if (stateChanged) {
+      await saveTimersToDisk(activeTimers); // <- Panggil tanpa 'service'
+    }
+
+    bool allPausedOrDone = activeTimers.every((t) => t.isPaused || t.isDone);
+    if (activeTimers.isEmpty || allPausedOrDone) {
+      globalTicker?.cancel();
+      globalTicker = null;
+    }
   }
 
-  // Fungsi untuk memulai ticker global HANYA JIKA belum berjalan
   void startGlobalTickerIfNeeded() {
     if (globalTicker == null || !globalTicker!.isActive) {
       globalTicker = Timer.periodic(const Duration(seconds: 1), onTick);
     }
+  }
+
+  // --- SAAT SERVICE PERTAMA KALI STARTUP ---
+  activeTimers = await loadTimersFromDisk(); // <- Panggil tanpa 'service'
+  service.invoke('updateTimers', {
+    'timers': activeTimers.map((t) => t.toJson()).toList(),
+  });
+  if (activeTimers.any((t) => !t.isPaused && !t.isDone)) {
+    startGlobalTickerIfNeeded();
   }
 
   // --- Event Listeners (Perintah dari UI) ---
@@ -209,38 +259,37 @@ void onStart(ServiceInstance service) async {
   }
   service.on('stopService').listen((event) => service.stopSelf());
 
-  // PERINTAH BARU: Tambah Timer
-  service.on('addTimer').listen((data) {
+  service.on('addTimer').listen((data) async {
     if (data == null) return;
+    final int duration = data['duration'] as int? ?? defaultTotalSeconds;
 
     final newTimer = CountdownTimer(
-      id: uuid.v4(), // Buat ID unik
+      id: uuid.v4(),
       name: data['name'] as String? ?? defaultTimerName,
-      remainingSeconds: data['duration'] as int? ?? defaultTotalSeconds,
+      initialDurationSeconds: duration,
+      remainingSeconds: duration,
+      isPaused: false,
+      isDone: false,
     );
 
     activeTimers.add(newTimer);
-    startGlobalTickerIfNeeded(); // Mulai ticker (jika belum jalan)
+    await saveTimersToDisk(activeTimers); // <- Panggil tanpa 'service'
+    startGlobalTickerIfNeeded();
   });
 
-  // PERINTAH BARU: Hapus Timer Spesifik
-  service.on('removeTimer').listen((data) {
+  service.on('removeTimer').listen((data) async {
     if (data == null) return;
     final String idToRemove = data['id'] as String;
     activeTimers.removeWhere((timer) => timer.id == idToRemove);
-    // Ticker akan otomatis stop sendiri di 'onTick' jika list-nya jadi kosong
+    await saveTimersToDisk(activeTimers); // <- Panggil tanpa 'service'
   });
 
-  // PERINTAH BARU: Hapus Semua Timer
-  service.on('clearAll').listen((event) {
+  service.on('clearAll').listen((event) async {
     activeTimers.clear();
     globalTicker?.cancel();
     globalTicker = null;
-
-    // Kirim update list kosong ke UI
+    await saveTimersToDisk(activeTimers); // <- Panggil tanpa 'service'
     service.invoke('updateTimers', {'timers': []});
-
-    // Reset notifikasi persisten
     flutterLocalNotificationsPlugin.show(
       persistentNotificationId,
       "Layanan Timer Aktif",
@@ -255,5 +304,33 @@ void onStart(ServiceInstance service) async {
         ),
       ),
     );
+  });
+
+  service.on('pauseTimer').listen((data) async {
+    if (data == null) return;
+    final timer = activeTimers.firstWhere((t) => t.id == data['id']);
+    timer.isPaused = true;
+    await saveTimersToDisk(activeTimers); // <- Panggil tanpa 'service'
+  });
+
+  service.on('resumeTimer').listen((data) async {
+    if (data == null) return;
+    final timer = activeTimers.firstWhere((t) => t.id == data['id']);
+    timer.isPaused = false;
+    timer.isDone = false;
+    await saveTimersToDisk(activeTimers); // <- Panggil tanpa 'service'
+    startGlobalTickerIfNeeded();
+  });
+
+  service.on('resetTimer').listen((data) async {
+    if (data == null) return;
+    final timer = activeTimers.firstWhere((t) => t.id == data['id']);
+    timer.remainingSeconds = timer.initialDurationSeconds;
+    timer.isPaused = true;
+    timer.isDone = false;
+    await saveTimersToDisk(activeTimers); // <- Panggil tanpa 'service'
+    service.invoke('updateTimers', {
+      'timers': activeTimers.map((t) => t.toJson()).toList(),
+    });
   });
 }

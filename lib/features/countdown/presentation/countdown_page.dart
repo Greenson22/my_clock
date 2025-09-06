@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import '../service/countdown_service.dart'; // Impor service (termasuk Model)
 
@@ -27,7 +26,6 @@ class _CountdownPageState extends State<CountdownPage> {
     super.initState();
 
     // Pastikan service jalan
-    // (di file service, autoStart sudah true, jadi ini akan menyambung ke service yg ada)
     _service.startService();
     _service.invoke('setAsForeground');
 
@@ -84,11 +82,15 @@ class _CountdownPageState extends State<CountdownPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100], // Latar belakang yang lebih lembut
       appBar: AppBar(
-        title: const Text("Multi Timer (Persistent)"),
+        title: const Text("Multi Timer Modern"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 1,
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_sweep),
+            icon: const Icon(Icons.delete_sweep_outlined),
             tooltip: "Hapus Semua Timer",
             onPressed: _activeTimers.isEmpty ? null : _clearAllTimers,
           ),
@@ -96,28 +98,39 @@ class _CountdownPageState extends State<CountdownPage> {
       ),
       body: Column(
         children: [
-          // BAGIAN 1: FORM INPUT
-          _buildInputForm(), // Memecah form ke widget sendiri agar rapi
-          const Divider(),
+          // BAGIAN 1: FORM INPUT DENGAN TAMPILAN BARU
+          _buildInputForm(),
 
           // BAGIAN 2: LIST VIEW TIMER YANG AKTIF
           Expanded(
             child: _activeTimers.isEmpty
                 ? const Center(
-                    child: Text(
-                      "Tidak ada timer aktif.",
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.timer_off_outlined,
+                          size: 60,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Belum ada timer",
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.only(
-                      bottom: 80,
-                    ), // Padding agar tidak tertutup
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
                     itemCount: _activeTimers.length,
                     itemBuilder: (context, index) {
                       final timer = _activeTimers[index];
-                      // Build setiap card timer
-                      return _buildTimerCard(timer);
+                      // Build setiap card timer dengan layout modern
+                      return _buildModernTimerCard(timer);
                     },
                   ),
           ),
@@ -128,146 +141,161 @@ class _CountdownPageState extends State<CountdownPage> {
 
   // --- WIDGET HELPER ---
 
-  /// Widget untuk Form Input di bagian atas
+  /// Widget untuk Form Input di bagian atas dengan gaya modern
   Widget _buildInputForm() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Column(
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: 'Nama Timer',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+    return Card(
+      margin: const EdgeInsets.all(12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Nama Timer',
+                prefixIcon: const Icon(Icons.label_outline),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              prefixIcon: const Icon(Icons.label_outline),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _timeController,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Durasi (JJ:MM:DD)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.timer_outlined),
-                  ),
-                  keyboardType: TextInputType.datetime,
+            const SizedBox(height: 12),
+            TextField(
+              controller: _timeController,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'monospace',
+              ),
+              decoration: InputDecoration(
+                labelText: 'Durasi (JJ:MM:DD)',
+                prefixIcon: const Icon(Icons.timer_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: _addTimer,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Icon(Icons.add_alarm),
+              keyboardType: TextInputType.datetime,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              icon: const Icon(Icons.add_alarm),
+              label: const Text(
+                "TAMBAH TIMER",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: _addTimer,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  /// Widget untuk membangun setiap Card Timer di ListView
-  Widget _buildTimerCard(CountdownTimer timer) {
-    // Tentukan warna dan style berdasarkan state timer
+  /// Widget untuk membangun setiap Card Timer di ListView dengan gaya modern
+  Widget _buildModernTimerCard(CountdownTimer timer) {
+    // Tentukan warna, ikon, dan progres berdasarkan state timer
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
-    Color cardColor = isDone
-        ? Colors.green.shade50
-        : (isPaused ? Colors.grey.shade100 : Colors.white);
-    Color timeColor = isDone
-        ? Colors.green
-        : (isPaused ? Colors.grey.shade700 : Colors.indigo);
+
+    final Color stateColor;
+    final IconData stateIcon;
+
+    if (isDone) {
+      stateColor = Colors.green;
+      stateIcon = Icons.check_circle;
+    } else if (isPaused) {
+      stateColor = Colors.grey.shade600;
+      stateIcon = Icons.pause_circle_filled;
+    } else {
+      stateColor = Theme.of(context).primaryColor;
+      stateIcon = Icons.play_circle_filled;
+    }
+
+    final double progress = timer.initialDurationSeconds > 0
+        ? timer.remainingSeconds / timer.initialDurationSeconds
+        : 0.0;
 
     return Card(
-      elevation: isPaused ? 1.0 : 4.0, // Beri efek 'aktif' jika sedang jalan
-      color: cardColor,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      elevation: isPaused ? 1.0 : 3.0,
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isPaused ? Colors.grey.shade200 : stateColor,
+          width: 1.5,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Baris Nama Timer dan Waktu
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    timer.name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      decoration: isDone
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+            ListTile(
+              leading: Icon(stateIcon, color: stateColor, size: 40),
+              title: Text(
+                timer.name,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  decoration: isDone
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
                 ),
-                Text(
-                  isDone ? "SELESAI" : formatDuration(timer.remainingSeconds),
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontFamily: 'monospace',
-                    color: timeColor,
-                    fontWeight: FontWeight.w500,
-                  ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Text(
+                isDone ? "SELESAI" : formatDuration(timer.remainingSeconds),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontFamily: 'monospace',
+                  color: stateColor,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: stateColor.withOpacity(0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(stateColor),
+                  minHeight: 6,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
 
             // Baris Tombol Kontrol
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            ButtonBar(
+              alignment: MainAxisAlignment.end,
               children: [
-                // Tombol PAUSE atau RESUME (PLAY)
-                if (!isDone) // Hanya tampilkan jika belum selesai
-                  IconButton(
-                    icon: Icon(isPaused ? Icons.play_arrow : Icons.pause),
-                    color: Theme.of(context).primaryColorDark,
-                    tooltip: isPaused ? "Lanjutkan" : "Jeda",
+                if (!isDone)
+                  TextButton(
                     onPressed: () => isPaused
                         ? _resumeTimer(timer.id)
                         : _pauseTimer(timer.id),
+                    child: Text(isPaused ? "Lanjutkan" : "Jeda"),
                   ),
 
-                // Tombol RESET
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  color: Colors.orange.shade800,
-                  tooltip: "Reset Timer",
+                TextButton(
                   onPressed: () => _resetTimer(timer.id),
+                  child: const Text("Reset"),
                 ),
 
-                // Tombol HAPUS
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  color: Colors.red.shade700,
-                  tooltip: "Hapus Timer",
+                TextButton(
                   onPressed: () => _removeTimer(timer.id),
+                  child: Text(
+                    "Hapus",
+                    style: TextStyle(color: Colors.red.shade700),
+                  ),
                 ),
               ],
             ),

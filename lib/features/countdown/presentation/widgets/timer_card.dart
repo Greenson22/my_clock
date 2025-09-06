@@ -48,6 +48,8 @@ class TimerCard extends StatelessWidget {
     return Card(
       elevation: isPaused ? 0.5 : 2.0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      clipBehavior:
+          Clip.antiAlias, // Penting agar Positioned tidak keluar dari Card
       child: Stack(
         children: [
           InkWell(
@@ -104,7 +106,6 @@ class TimerCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  // [FIX] Hapus Expanded di sini
                   CircularPercentIndicator(
                     radius: 55.0,
                     lineWidth: 8.0,
@@ -169,13 +170,35 @@ class TimerCard extends StatelessWidget {
               ),
             ),
           ),
+          // [MODIFIKASI] Ubah ikon drag handle menjadi dua garis horizontal
           if (isReorderEnabled)
             Positioned(
-              top: 12,
-              right: 40,
-              child: Icon(
-                Icons.drag_handle,
-                color: Colors.grey.withOpacity(0.5),
+              top: 8, // Atur jarak dari atas
+              left: 0,
+              right: 0,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 32, // Panjang garis
+                      height: 3, // Ketebalan garis
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 3), // Jarak antar garis
+                    Container(
+                      width: 32, // Panjang garis
+                      height: 3, // Ketebalan garis
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],

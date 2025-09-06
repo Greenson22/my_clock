@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Menggunakan shared_preferences
 import 'package:uuid/uuid.dart';
 
 // --- KONSTANTA & MODEL --- (Tidak ada perubahan)
@@ -142,7 +142,7 @@ void onStart(ServiceInstance service) async {
   List<CountdownTimer> activeTimers = [];
   Timer? globalTicker;
 
-  // --- FUNGSI TICKER --- (Tidak ada perubahan)
+  // --- FUNGSI TICKER & LAINNYA --- (Tidak ada perubahan)
   void onTick(Timer timer) async {
     bool stateChanged = false;
     String notificationBodySummary = "";
@@ -249,7 +249,6 @@ void onStart(ServiceInstance service) async {
   }
   service.on('stopService').listen((event) => service.stopSelf());
 
-  // [PERUBAHAN DI SINI]
   service.on('addTimer').listen((data) async {
     if (data == null) return;
     final int duration = data['duration'] as int? ?? defaultTotalSeconds;
@@ -259,28 +258,28 @@ void onStart(ServiceInstance service) async {
       name: data['name'] as String? ?? defaultTimerName,
       initialDurationSeconds: duration,
       remainingSeconds: duration,
-      isPaused: true, // <-- Mulai dalam keadaan jeda
+      isPaused: true,
       isDone: false,
     );
 
     activeTimers.add(newTimer);
     await saveTimersToDisk(activeTimers);
-
-    // Jangan jalankan ticker, karena timer baru dijeda
-    // startGlobalTickerIfNeeded();
-
-    // Kirim update manual agar UI segera refresh menampilkan timer baru yang dijeda
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
   });
 
-  // --- Listener lainnya --- (Tidak ada perubahan)
+  // [PERBAIKAN DI SINI]
   service.on('removeTimer').listen((data) async {
     if (data == null) return;
     final String idToRemove = data['id'] as String;
     activeTimers.removeWhere((timer) => timer.id == idToRemove);
     await saveTimersToDisk(activeTimers);
+
+    // [TAMBAHKAN BARIS INI] Kirim update manual ke UI
+    service.invoke('updateTimers', {
+      'timers': activeTimers.map((t) => t.toJson()).toList(),
+    });
   });
 
   service.on('clearAll').listen((event) async {

@@ -64,7 +64,6 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   // --- FUNGSI KONTROL UI ---
-  // [PERUBAHAN] Fungsi _addTimer sekarang menerima parameter
   void _addTimer(String name, String timeString) {
     final int totalSeconds = parseDuration(timeString);
     if (totalSeconds > 0) {
@@ -148,24 +147,54 @@ class _CountdownPageState extends State<CountdownPage> {
     );
   }
 
-  // [BARU] Fungsi untuk menampilkan panel input dari bawah (bottom sheet)
+  // [BARU] Fungsi untuk menampilkan dialog konfirmasi hapus satu timer
+  Future<void> _showDeleteConfirmationDialog(CountdownTimer timer) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Hapus Timer'),
+          content: Text(
+            'Apakah Anda yakin ingin menghapus timer "${timer.name}"?',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Hapus'),
+              onPressed: () {
+                _removeTimer(timer.id);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showAddTimerSheet() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Penting agar sheet tidak tertutup keyboard
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Padding(
-          // Padding agar konten tidak tertutup keyboard
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: _AddTimerSheet(
             onAddTimer: (name, timeString) {
               _addTimer(name, timeString);
-              Navigator.pop(context); // Tutup bottom sheet setelah menambah
+              Navigator.pop(context);
             },
           ),
         );
@@ -193,7 +222,6 @@ class _CountdownPageState extends State<CountdownPage> {
           ),
         ],
       ),
-      // [BARU] Tambahkan FloatingActionButton
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddTimerSheet,
         label: const Text('Timer Baru'),
@@ -218,12 +246,7 @@ class _CountdownPageState extends State<CountdownPage> {
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(
-                8,
-                8,
-                8,
-                80,
-              ), // Padding bawah agar tidak tertutup FAB
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
               itemCount: _activeTimers.length,
               itemBuilder: (context, index) {
                 final timer = _activeTimers[index];
@@ -234,10 +257,7 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 
   // --- WIDGET HELPER ---
-  // [DIHAPUS] Widget _buildInputForm() sudah tidak diperlukan lagi
-
   Widget _buildModernTimerCard(CountdownTimer timer) {
-    // ... (Tidak ada perubahan di sini)
     final bool isPaused = timer.isPaused;
     final bool isDone = timer.isDone;
 
@@ -335,8 +355,9 @@ class _CountdownPageState extends State<CountdownPage> {
                   onPressed: () => _resetTimer(timer.id),
                   child: const Text("Reset"),
                 ),
+                // [PERUBAHAN] Panggil fungsi dialog konfirmasi
                 TextButton(
-                  onPressed: () => _removeTimer(timer.id),
+                  onPressed: () => _showDeleteConfirmationDialog(timer),
                   child: Text(
                     "Hapus",
                     style: TextStyle(color: Colors.red.shade700),
@@ -351,7 +372,7 @@ class _CountdownPageState extends State<CountdownPage> {
   }
 }
 
-// [BARU] Widget terpisah untuk konten Bottom Sheet
+// (Widget _AddTimerSheet tetap sama, tidak ada perubahan)
 class _AddTimerSheet extends StatefulWidget {
   final Function(String name, String timeString) onAddTimer;
 

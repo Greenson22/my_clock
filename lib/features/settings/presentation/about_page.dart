@@ -33,7 +33,6 @@ class _AboutPageState extends State<AboutPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
-    // Gunakan colorScheme.primary yang lebih modern daripada theme.primaryColor
     final appColor = theme.colorScheme.primary;
 
     return Scaffold(
@@ -52,12 +51,10 @@ class _AboutPageState extends State<AboutPage> {
                     height: 100,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16.0),
-                      // Jika Anda memiliki logo, ganti ini dengan Image.asset
-                      // Untuk saat ini, kita gunakan ikon dari aplikasi:
                       child: Container(
                         color: Colors.grey.shade200,
                         child: Icon(
-                          Icons.timer_outlined, // Ikon yang relevan dengan app
+                          Icons.timer_outlined,
                           size: 50,
                           color: appColor,
                         ),
@@ -66,7 +63,7 @@ class _AboutPageState extends State<AboutPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Multi Timer', // Nama aplikasi Anda
+                    'Multi Timer',
                     style: textTheme.headlineLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: appColor,
@@ -74,14 +71,13 @@ class _AboutPageState extends State<AboutPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Manajemen Timer dan Alarm Andal Anda', // Slogan aplikasi
+                    'Manajemen Timer dan Alarm Andal Anda',
                     style: textTheme.titleMedium?.copyWith(
                       color: Colors.grey.shade600,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  // Widget untuk menampilkan versi
                   Text(
                     _version,
                     style: textTheme.bodyMedium?.copyWith(
@@ -157,27 +153,43 @@ class _AboutPageState extends State<AboutPage> {
 
             const Divider(height: 48),
 
-            // Informasi Pengembang (Dibuat generik)
+            // --- [MODIFIKASI DI SINI] ---
+            // Informasi Pengembang (Diambil dari file referensi Anda)
             Center(
               child: Column(
                 children: [
                   CircleAvatar(
                     radius: 40,
-                    backgroundColor: appColor.withOpacity(0.1),
-                    child: Icon(Icons.code_rounded, size: 40, color: appColor),
+                    backgroundColor: appColor,
+                    child: const Icon(
+                      // Ikon dari file referensi
+                      Icons.person_outline,
+                      size: 40,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  Text('Dibuat dengan Flutter', style: textTheme.titleMedium),
+                  Text('Dibuat oleh:', style: textTheme.titleMedium), //
                   const SizedBox(height: 4),
                   Text(
-                    'oleh Pengembang Aplikasi', // Teks generik
+                    'Frendy Rikal Gerung, S.Kom.', // Nama Anda
                     style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Sarjana Komputer dari Universitas Negeri Manado', // Info dari file referensi
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
+
+            // --- AKHIR MODIFIKASI ---
           ],
         ),
       ),

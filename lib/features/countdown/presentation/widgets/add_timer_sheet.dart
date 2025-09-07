@@ -79,6 +79,15 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
     );
   }
 
+  // [BARU] Fungsi helper untuk mengisi durasi dari chip
+  void _setDurationFromChip(Duration duration) {
+    // Kita gunakan formatDuration yang sudah ada dari countdown_utils
+    final String formattedTime = formatDuration(duration.inSeconds);
+    setState(() {
+      _timeController.text = formattedTime;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final String alarmSoundText = _selectedAlarmFile != null
@@ -152,6 +161,43 @@ class _AddTimerSheetState extends State<AddTimerSheet> {
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(6),
               TimeInputFormatter(),
+            ],
+          ),
+          // [BARU] Tambahkan Wrap dengan InputChip untuk durasi cepat
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8.0,
+            alignment: WrapAlignment.center,
+            children: [
+              InputChip(
+                label: const Text('1 mnt'),
+                onPressed: () =>
+                    _setDurationFromChip(const Duration(minutes: 1)),
+              ),
+              InputChip(
+                label: const Text('5 mnt'),
+                onPressed: () =>
+                    _setDurationFromChip(const Duration(minutes: 5)),
+              ),
+              InputChip(
+                label: const Text('10 mnt'),
+                onPressed: () =>
+                    _setDurationFromChip(const Duration(minutes: 10)),
+              ),
+              InputChip(
+                label: const Text('15 mnt'),
+                onPressed: () =>
+                    _setDurationFromChip(const Duration(minutes: 15)),
+              ),
+              InputChip(
+                label: const Text('30 mnt'),
+                onPressed: () =>
+                    _setDurationFromChip(const Duration(minutes: 30)),
+              ),
+              InputChip(
+                label: const Text('1 Jam'),
+                onPressed: () => _setDurationFromChip(const Duration(hours: 1)),
+              ),
             ],
           ),
           const SizedBox(height: 16),

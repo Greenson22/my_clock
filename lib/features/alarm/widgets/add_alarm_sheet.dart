@@ -63,8 +63,24 @@ class _AddAlarmSheetState extends State<AddAlarmSheet> {
     });
   }
 
+  // --- [BARU] FUNGSI HELPER UNTUK MEMILIH SEMUA HARI ---
+  void _toggleAllDays() {
+    setState(() {
+      // Cek apakah semua hari (every) saat ini bernilai true
+      final bool areAllSelected = _selectedDays.every((day) => day == true);
+
+      if (areAllSelected) {
+        // Jika semua sudah dipilih, batalkan semua pilihan
+        _selectedDays = List.filled(7, false);
+      } else {
+        // Jika belum semua dipilih (atau hanya sebagian), pilih semua
+        _selectedDays = List.filled(7, true);
+      }
+    });
+  }
+  // --- AKHIR FUNGSI BARU ---
+
   // --- SATU FUNGSI SIMPAN UTAMA ---
-  // Fungsi ini sekarang menangani logika untuk KEDUA mode input
   void _saveAlarm() {
     final String label = _labelController.text.isNotEmpty
         ? _labelController.text
@@ -264,6 +280,10 @@ class _AddAlarmSheetState extends State<AddAlarmSheet> {
   // Widget helper untuk UI Input Manual
   Widget _buildManualInput() {
     final List<String> dayLabels = ['S', 'S', 'R', 'K', 'J', 'S', 'M'];
+
+    // --- [BARU] Hitung status terpilih untuk FilterChip ---
+    final bool allDaysSelected = _selectedDays.every((day) => day == true);
+
     return Column(
       key: const ValueKey('manual'), // Key untuk AnimatedSwitcher
       children: [
@@ -317,6 +337,20 @@ class _AddAlarmSheetState extends State<AddAlarmSheet> {
             ),
           ),
         ),
+
+        // --- [BARU] CHIP UNTUK MEMILIH SEMUA HARI ---
+        const SizedBox(height: 8),
+        Center(
+          child: FilterChip(
+            label: const Text('Setiap Hari'),
+            selected: allDaysSelected,
+            onSelected: (isSelected) {
+              // Panggil fungsi helper yang kita buat sebelumnya
+              _toggleAllDays();
+            },
+          ),
+        ),
+        // --- AKHIR BLOK BARU ---
       ],
     );
   }

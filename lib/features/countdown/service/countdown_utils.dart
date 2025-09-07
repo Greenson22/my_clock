@@ -8,6 +8,8 @@ const String defaultTimeString = "00:00:10";
 const int defaultTotalSeconds = 10;
 const Uuid uuid = Uuid();
 const String kTimersStorageKey = "activeTimersListV2";
+// [BARU] Tambahkan konstanta untuk Aksi Notifikasi
+const String kStopAlarmActionId = 'STOP_ALARM_ACTION';
 
 // [BARU] Tambahkan konstanta untuk kanal notifikasi prioritas tinggi
 const String finishedTimerChannelId = 'finished_timers_channel';

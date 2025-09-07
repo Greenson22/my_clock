@@ -11,7 +11,7 @@ import 'package:just_audio/just_audio.dart';
 import 'countdown_model.dart';
 import 'countdown_utils.dart';
 
-// Fungsi untuk menyimpan dan memuat state
+// Fungsi penyimpanan (tetap sama)
 Future<void> saveTimersToDisk(List<CountdownTimer> timers) async {
   final prefs = await SharedPreferences.getInstance();
   final List<Map<String, dynamic>> timerJsonList = timers
@@ -46,8 +46,30 @@ void onStart(ServiceInstance service) async {
   Timer? globalTicker;
 
   void onTick(Timer timer) async {
-    bool stateChanged = false;
+    // [MODIFIKASI 1: TAMBAHKAN BLOK INI DI PALING ATAS onTick]
+    // Ini adalah "listener" baru kita. Ia memeriksa SharedPreferences setiap detik.
+    final prefs = await SharedPreferences.getInstance();
+    final bool stopAlarmFlag =
+        prefs.getBool('STOP_ALARM_VIA_NOTIFICATION_FLAG') ?? false;
 
+    if (stopAlarmFlag) {
+      audioPlayer.stop();
+      FlutterRingtonePlayer().stop();
+
+      // Hapus flag-nya agar tidak dieksekusi lagi
+      await prefs.setBool('STOP_ALARM_VIA_NOTIFICATION_FLAG', false);
+
+      // Karena kita sudah menghentikan audio, kita juga harus menghapus
+      // semua notifikasi "selesai" yang mungkin masih aktif.
+      for (final timer in activeTimers) {
+        if (timer.isDone) {
+          flutterLocalNotificationsPlugin.cancel(timer.id.hashCode);
+        }
+      }
+    }
+    // --- AKHIR BLOK MODIFIKASI 1 ---
+
+    bool stateChanged = false;
     for (final timer in activeTimers) {
       if (!timer.isPaused && !timer.isDone) {
         timer.remainingSeconds--;
@@ -58,6 +80,7 @@ void onStart(ServiceInstance service) async {
           timer.isDone = true;
           timer.isPaused = true;
 
+          // ... (logika memutar audio tetap sama) ...
           if (timer.alarmSound != null && timer.alarmSound!.isNotEmpty) {
             try {
               await audioPlayer.setFilePath(timer.alarmSound!);
@@ -70,18 +93,26 @@ void onStart(ServiceInstance service) async {
             FlutterRingtonePlayer().playAlarm(looping: true);
           }
 
-          // [MODIFIKASI] Kirim notifikasi ini ke kanal prioritas tinggi
+          // ... (logika menampilkan notifikasi tetap sama) ...
           flutterLocalNotificationsPlugin.show(
             timer.id.hashCode,
             'Timer Selesai!',
             'Timer Anda "${timer.name}" telah berakhir.',
-            const NotificationDetails(
+            NotificationDetails(
               android: AndroidNotificationDetails(
-                finishedTimerChannelId, // <-- Gunakan ID kanal BARU
-                finishedTimerChannelName, // <-- Gunakan nama kanal BARU
+                finishedTimerChannelId,
+                finishedTimerChannelName,
                 importance: Importance.high,
                 priority: Priority.high,
                 ongoing: false,
+                autoCancel: true,
+                actions: <AndroidNotificationAction>[
+                  AndroidNotificationAction(
+                    kStopAlarmActionId,
+                    'Matikan Alarm',
+                    cancelNotification: false,
+                  ),
+                ],
               ),
             ),
           );
@@ -94,16 +125,13 @@ void onStart(ServiceInstance service) async {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
 
-    // Filter untuk mendapatkan timer yang benar-benar sedang berjalan
+    // ... (logika notifikasi foreground service tetap sama) ...
     final runningTimers = activeTimers
         .where((t) => !t.isPaused && !t.isDone)
         .toList();
     final int runningCount = runningTimers.length;
-
     String title;
     String content;
-
-    // Tentukan judul dan konten notifikasi berdasarkan kondisi
     if (runningCount > 0) {
       title = "$runningCount Timer Berjalan";
       content = runningTimers
@@ -117,7 +145,6 @@ void onStart(ServiceInstance service) async {
       content = "Tambahkan timer baru untuk memulai.";
     }
 
-    // Tampilkan notifikasi layanan utama di kanal prioritas rendah
     if (service is AndroidServiceInstance) {
       if (await service.isForegroundService()) {
         flutterLocalNotificationsPlugin.show(
@@ -126,7 +153,7 @@ void onStart(ServiceInstance service) async {
           content,
           const NotificationDetails(
             android: AndroidNotificationDetails(
-              notificationChannelId, // Kanal prioritas rendah
+              notificationChannelId,
               'Layanan Timer Berjalan',
               icon: 'ic_bg_service_small',
               ongoing: true,
@@ -137,7 +164,6 @@ void onStart(ServiceInstance service) async {
       }
     }
 
-    // Simpan state dan hentikan ticker jika perlu
     if (stateChanged) await saveTimersToDisk(activeTimers);
     if (activeTimers.every((t) => t.isPaused || t.isDone)) {
       globalTicker?.cancel();
@@ -168,15 +194,36 @@ void onStart(ServiceInstance service) async {
         .listen((event) => service.setAsBackgroundService());
   }
   service.on('stopService').listen((event) => service.stopSelf());
+
   service.on('stopAlarm').listen((event) {
     audioPlayer.stop();
     FlutterRingtonePlayer().stop();
+    for (final timer in activeTimers) {
+      if (timer.isDone) {
+        flutterLocalNotificationsPlugin.cancel(timer.id.hashCode);
+      }
+    }
   });
+
+  // [MODIFIKASI 2: HAPUS LISTENER INI]
+  // Listener ini tidak akan pernah menerima apa pun saat aplikasi ditutup.
+  /*
+  service.on('stopAlarmFromNotification').listen((data) {
+    // ... KODE INI DIHAPUS ...
+  });
+  */
+  // --- AKHIR BLOK MODIFIKASI 2 ---
+
   service.on('requestInitialTimers').listen((event) {
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
   });
+
+  // ... (SISA SEMUA LISTENER ANDA TETAP SAMA) ...
+  // 'addTimer', 'removeTimer', 'clearAll', 'pauseTimer', 'resumeTimer',
+  // 'resetTimer', 'updateTimerIcon', 'updateTimerName', 'updateTimerDuration',
+  // 'reorderTimers' ... semua kode ini biarkan seperti apa adanya.
 
   service.on('addTimer').listen((data) async {
     if (data == null) return;
@@ -203,9 +250,13 @@ void onStart(ServiceInstance service) async {
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
+    flutterLocalNotificationsPlugin.cancel(data['id'].hashCode);
   });
 
   service.on('clearAll').listen((event) async {
+    for (final timer in activeTimers) {
+      flutterLocalNotificationsPlugin.cancel(timer.id.hashCode);
+    }
     activeTimers.clear();
     globalTicker?.cancel();
     globalTicker = null;
@@ -239,6 +290,9 @@ void onStart(ServiceInstance service) async {
     service.invoke('updateTimers', {
       'timers': activeTimers.map((t) => t.toJson()).toList(),
     });
+    audioPlayer.stop();
+    FlutterRingtonePlayer().stop();
+    flutterLocalNotificationsPlugin.cancel(timer.id.hashCode);
   });
 
   service.on('updateTimerIcon').listen((data) async {
@@ -284,6 +338,7 @@ void onStart(ServiceInstance service) async {
       service.invoke('updateTimers', {
         'timers': activeTimers.map((t) => t.toJson()).toList(),
       });
+      flutterLocalNotificationsPlugin.cancel(timerToUpdate.id.hashCode);
     } catch (e) {
       // Timer tidak ditemukan
     }

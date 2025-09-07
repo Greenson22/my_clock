@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../application/theme_provider.dart';
+// [BARU] Impor halaman 'About' yang baru saja kita buat
+// (Asumsi Anda menyimpannya di folder yang sama)
+import 'about_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -9,27 +12,16 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
-    // --- PERBAIKAN LOGIKA DIMULAI DI SINI ---
-
-    // 1. Dapatkan mode tema saat ini dari provider
+    // --- Logika Mode Gelap (Tetap sama) ---
     final ThemeMode currentMode = themeProvider.themeMode;
-
-    // 2. Dapatkan pengaturan brightness dari sistem perangkat (via context)
     final Brightness platformBrightness = MediaQuery.of(
       context,
     ).platformBrightness;
-
-    // 3. Tentukan apakah UI secara efektif sedang gelap
-    // Ini benar jika:
-    //    a) Mode di-set manual ke Dark
-    //    ATAU
-    //    b) Mode di-set ke System DAN sistem saat ini sedang Dark.
     final bool isEffectivelyDark =
         (currentMode == ThemeMode.dark) ||
         (currentMode == ThemeMode.system &&
             platformBrightness == Brightness.dark);
-
-    // --- AKHIR PERBAIKAN LOGIKA ---
+    // --- Akhir Logika Mode Gelap ---
 
     return Scaffold(
       appBar: AppBar(
@@ -40,16 +32,27 @@ class SettingsPage extends StatelessWidget {
       ),
       body: ListView(
         children: [
+          // Opsi Mode Gelap yang sudah ada
           ListTile(
             title: const Text('Mode Gelap'),
             trailing: Switch(
-              // 4. Gunakan nilai boolean baru yang sudah kita hitung
               value: isEffectivelyDark,
               onChanged: (value) {
-                // Fungsi toggleTheme sudah benar (mengatur ke Light atau Dark)
                 themeProvider.toggleTheme(value);
               },
             ),
+          ),
+
+          // [BARU] Tambahkan ListTile untuk navigasi ke Halaman 'About'
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Tentang Aplikasi'),
+            onTap: () {
+              // Navigasi ke halaman AboutPage saat diketuk
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const AboutPage()),
+              );
+            },
           ),
         ],
       ),

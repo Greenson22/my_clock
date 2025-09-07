@@ -1,3 +1,13 @@
+// Import ini mungkin sudah ada atau diperlukan
+import java.util.Properties
+import java.io.FileInputStream
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -32,16 +42,33 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+            storeFile = file(keystoreProperties.getProperty("storeFile"))
+            storePassword = keystoreProperties.getProperty("storePassword")
+        }
+    }
+
     buildTypes {
+        getByName("release") {
+            // 2. Pastikan baris ini ada (menghubungkan build "release" ke config di atas)
+            signingConfig = signingConfigs.getByName("release")
+
+            // ProGuard/R8 (pengecilan kode) biasanya sudah diatur oleh Flutter
+            // isMinifyEnabled = true 
+            // ...
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             applicationIdSuffix = ".debug"
         }
-    }
+    }x
 }
 
 flutter {

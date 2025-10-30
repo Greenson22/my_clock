@@ -165,7 +165,14 @@ void onStart(ServiceInstance service) async {
     }
 
     if (stateChanged) await saveTimersToDisk(activeTimers);
-    if (activeTimers.every((t) => t.isPaused || t.isDone)) {
+
+    // [PERBAIKAN DI SINI]
+    // Ticker harus tetap berjalan jika ada timer yang 'isDone' (sedang berdering),
+    // agar bisa mendengarkan event 'stopAlarmFlag' dari notifikasi.
+    // Ticker hanya boleh berhenti jika daftar timer kosong ATAU
+    // semua timer secara eksplisit 'isPaused' (dan tidak 'isDone').
+    if (activeTimers.isEmpty ||
+        activeTimers.every((t) => t.isPaused && !t.isDone)) {
       globalTicker?.cancel();
       globalTicker = null;
     }

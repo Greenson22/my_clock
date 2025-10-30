@@ -1,3 +1,5 @@
+// lib/features/alarm/widgets/quick_alarm_input.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -20,7 +22,10 @@ class QuickAlarmInputState extends State<QuickAlarmInput> {
   @override
   void initState() {
     super.initState();
-    _minutesController = TextEditingController(text: '10');
+    // --- [MODIFIKASI DI SINI] ---
+    // Mengubah nilai default dari '10' menjadi '22'
+    _minutesController = TextEditingController(text: '22');
+    // --- AKHIR MODIFIKASI ---
   }
 
   @override
@@ -79,7 +84,7 @@ class QuickAlarmInputState extends State<QuickAlarmInput> {
               onPressed: () => _setDurationFromChip(30),
             ),
             InputChip(
-              label: const Text('1 Jam'),
+              label: const Text('1Jam'),
               onPressed: () => _setDurationFromChip(60),
             ),
           ],

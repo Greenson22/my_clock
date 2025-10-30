@@ -46,21 +46,20 @@ class _AboutPageState extends State<AboutPage> {
             Center(
               child: Column(
                 children: [
+                  // --- [MODIFIKASI DI SINI] ---
                   SizedBox(
                     width: 100,
                     height: 100,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16.0),
-                      child: Container(
-                        color: Colors.grey.shade200,
-                        child: Icon(
-                          Icons.timer_outlined,
-                          size: 50,
-                          color: appColor,
-                        ),
+                      // [DIUBAH] Menggunakan Image.asset untuk ikon aplikasi Anda
+                      child: Image.asset(
+                        'assets/icon/icon.png',
+                        fit: BoxFit.cover, // Sesuaikan fit jika perlu
                       ),
                     ),
                   ),
+                  // --- AKHIR MODIFIKASI ---
                   const SizedBox(height: 16),
                   Text(
                     'Multi Timer',
@@ -153,19 +152,15 @@ class _AboutPageState extends State<AboutPage> {
 
             const Divider(height: 48),
 
-            // --- [MODIFIKASI DI SINI] ---
-            // Informasi Pengembang (Diambil dari file referensi Anda)
+            // Informasi Pengembang
             Center(
               child: Column(
                 children: [
                   CircleAvatar(
                     radius: 40,
-                    backgroundColor: appColor,
-                    child: const Icon(
-                      // Ikon dari file referensi
-                      Icons.person_outline,
-                      size: 40,
-                      color: Colors.white,
+                    backgroundColor: Colors.grey.shade300,
+                    backgroundImage: const AssetImage(
+                      'assets/pictures/profile.jpg',
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -179,7 +174,7 @@ class _AboutPageState extends State<AboutPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Sarjana Komputer dari Universitas Negeri Manado', // Info dari file referensi
+                    'Sarjana Komputer dari Universitas Negeri Manado',
                     style: textTheme.bodyMedium?.copyWith(
                       color: Colors.grey.shade700,
                     ),
@@ -188,8 +183,6 @@ class _AboutPageState extends State<AboutPage> {
                 ],
               ),
             ),
-
-            // --- AKHIR MODIFIKASI ---
           ],
         ),
       ),

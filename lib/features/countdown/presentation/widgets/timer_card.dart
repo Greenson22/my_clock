@@ -56,9 +56,9 @@ class TimerCard extends StatelessWidget {
             onTap: onEdit,
             borderRadius: BorderRadius.circular(24),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(10.0),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Row(
@@ -66,7 +66,7 @@ class TimerCard extends StatelessWidget {
                     children: [
                       Text(
                         timer.iconChar ?? '⏱️',
-                        style: const TextStyle(fontSize: 28),
+                        style: const TextStyle(fontSize: 24),
                       ),
                       PopupMenuButton<String>(
                         onSelected: (value) {
@@ -107,15 +107,15 @@ class TimerCard extends StatelessWidget {
                     ],
                   ),
                   CircularPercentIndicator(
-                    radius: 55.0,
+                    radius: 41.0,
                     lineWidth: 8.0,
                     percent: progress,
                     center: isDone
-                        ? Icon(Icons.alarm_on, size: 40, color: stateColor)
+                        ? Icon(Icons.alarm_on, size: 36, color: stateColor)
                         : Text(
                             formatDuration(timer.remainingSeconds),
                             style: TextStyle(
-                              fontSize: 22,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'monospace',
                               color: theme.colorScheme.onSurface,
@@ -134,13 +134,14 @@ class TimerCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 15,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      // [MODIFIKASI FINAL] Spasi 1px ini dihapus
+                      // const SizedBox(height: 1),
                       if (isDone)
                         FilledButton.icon(
-                          icon: const Icon(Icons.alarm_off, size: 18),
+                          icon: const Icon(Icons.alarm_off, size: 16),
                           label: const Text("Matikan"),
                           onPressed: onStopAlarm,
                           style: FilledButton.styleFrom(
@@ -150,12 +151,14 @@ class TimerCard extends StatelessWidget {
                         )
                       else if (isPaused)
                         IconButton.filled(
+                          iconSize: 22,
                           icon: const Icon(Icons.play_arrow),
                           onPressed: onResume,
                           tooltip: 'Lanjutkan',
                         )
                       else
                         IconButton.filled(
+                          iconSize: 22,
                           icon: const Icon(Icons.pause),
                           onPressed: onPause,
                           tooltip: 'Jeda',
@@ -170,10 +173,9 @@ class TimerCard extends StatelessWidget {
               ),
             ),
           ),
-          // [MODIFIKASI] Ubah ikon drag handle menjadi dua garis horizontal
           if (isReorderEnabled)
             Positioned(
-              top: 8, // Atur jarak dari atas
+              top: 8,
               left: 0,
               right: 0,
               child: Align(
@@ -181,17 +183,17 @@ class TimerCard extends StatelessWidget {
                 child: Column(
                   children: [
                     Container(
-                      width: 32, // Panjang garis
-                      height: 3, // Ketebalan garis
+                      width: 32,
+                      height: 3,
                       decoration: BoxDecoration(
                         color: Colors.grey.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    const SizedBox(height: 3), // Jarak antar garis
+                    const SizedBox(height: 3),
                     Container(
-                      width: 32, // Panjang garis
-                      height: 3, // Ketebalan garis
+                      width: 32,
+                      height: 3,
                       decoration: BoxDecoration(
                         color: Colors.grey.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(2),

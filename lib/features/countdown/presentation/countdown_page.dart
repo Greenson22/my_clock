@@ -149,7 +149,9 @@ class _CountdownPageState extends State<CountdownPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.8,
+                // [MODIFIKASI] Diubah dari 0.9 ke 0.85 untuk memberi sedikit
+                // ruang tinggi ekstra dan memperbaiki overflow.
+                childAspectRatio: 0.85,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
               ),
